@@ -82,6 +82,8 @@ static void locSrvCrtpCB(CRTPPacket* pk);
 static void extPositionHandler(CRTPPacket* pk);
 static void genericLocHandle(CRTPPacket* pk);
 
+static uint16_t total_recv = 0;
+
 void locSrvInit()
 {
   if (isInit) {
@@ -104,6 +106,7 @@ static void locSrvCrtpCB(CRTPPacket* pk)
     default:
       break;
   }
+  total_recv++;
 }
 
 static void extPositionHandler(CRTPPacket* pk)
@@ -189,6 +192,7 @@ LOG_GROUP_START(ext_pos)
   LOG_ADD(LOG_FLOAT, X, &ext_pos.x)
   LOG_ADD(LOG_FLOAT, Y, &ext_pos.y)
   LOG_ADD(LOG_FLOAT, Z, &ext_pos.z)
+  LOG_ADD(LOG_UINT16, recv, &total_recv)
 LOG_GROUP_STOP(ext_pos)
 
 PARAM_GROUP_START(locSrv)

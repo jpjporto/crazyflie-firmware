@@ -185,7 +185,7 @@ void sensorsAcquire(sensorData_t *sensors, const uint32_t tick)
   sensorsReadAcc(&sensors->acc);
   sensorsReadMag(&sensors->mag);
   sensorsReadBaro(&sensors->baro);
-  zRangerReadRange(&sensors->zrange, tick);
+  //zRangerReadRange(&sensors->zrange, tick);
 }
 
 bool sensorsAreCalibrated() {

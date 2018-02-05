@@ -63,7 +63,13 @@ void stabilizerInit(StateEstimatorType estimator)
 
   sensorsInit();
   stateEstimatorInit(estimator);
+#ifdef CONTROLLER_TYPE_hinf
+  hinfControllerInit();
+#elif CONTROLLER_TYPE_lqr
+  lqrControllerInit();
+#else
   stateControllerInit();
+#endif
   powerDistributionInit();
   if (estimator == kalmanEstimator)
   {
@@ -82,7 +88,9 @@ bool stabilizerTest(void)
 
   pass &= sensorsTest();
   pass &= stateEstimatorTest();
+#if !defined(CONTROLLER_TYPE_hinf) && !defined(CONTROLLER_TYPE_lqr)
   pass &= stateControllerTest();
+#endif
   pass &= powerDistributionTest();
 
   return pass;
@@ -131,7 +139,13 @@ static void stabilizerTask(void* param)
 
     sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
 
+#ifdef CONTROLLER_TYPE_hinf
+    hinfController(&control, &setpoint, &state, tick);
+#elif CONTROLLER_TYPE_lqr
+    lqrController(&control, &setpoint, &state, tick);
+#else
     stateController(&control, &setpoint, &sensorData, &state, tick);
+#endif
 
     checkEmergencyStopTimeout();
 
@@ -167,11 +181,21 @@ LOG_ADD(LOG_FLOAT, pitch, &setpoint.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &setpoint.attitudeRate.yaw)
 LOG_GROUP_STOP(ctrltarget)
 
+LOG_GROUP_START(setpoint)
+LOG_ADD(LOG_FLOAT, x, &setpoint.position.x)
+LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
+LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
+LOG_GROUP_STOP(setpoint)
+
 LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+LOG_ADD(LOG_FLOAT, thrust, &control.thrust)
+#else
 LOG_ADD(LOG_UINT16, thrust, &control.thrust)
+#endif
 LOG_GROUP_STOP(stabilizer)
 
 LOG_GROUP_START(acc)
@@ -215,7 +239,15 @@ LOG_ADD(LOG_FLOAT, z, &sensorData.mag.z)
 LOG_GROUP_STOP(mag)
 
 LOG_GROUP_START(controller)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+LOG_ADD(LOG_FLOAT, ctr_thrust, &control.thrust)
+LOG_ADD(LOG_FLOAT, ctr_roll, &control.roll)
+LOG_ADD(LOG_FLOAT, ctr_pitch, &control.pitch)
+LOG_ADD(LOG_FLOAT, ctr_yaw, &control.yaw)
+LOG_ADD(LOG_UINT8, enabled, &control.enabled)
+#else
 LOG_ADD(LOG_INT16, ctr_yaw, &control.yaw)
+#endif
 LOG_GROUP_STOP(controller)
 
 LOG_GROUP_START(stateEstimate)

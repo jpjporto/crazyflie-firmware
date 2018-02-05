@@ -21,7 +21,7 @@ DEBUG             ?= 0
 CLOAD_SCRIPT      ?= python3 -m cfloader
 CLOAD_CMDS        ?=
 CLOAD_ARGS        ?=
-PLATFORM					?= CF2
+PLATFORM          ?= CF2
 LPS_TDMA_ENABLE   ?= 0
 LPS_TDOA_ENABLE   ?= 0
 
@@ -30,7 +30,7 @@ LPS_TDOA_ENABLE   ?= 0
 ESTIMATOR          ?= any
 CONTROLLER         ?= pid
 POWER_DISTRIBUTION ?= stock
-SENSORS 					 ?= cf2
+SENSORS            ?= cf2
 
 ######### Test activation ##########
 FATFS_DISKIO_TESTS  ?= 0	# Set to 1 to enable FatFS diskio function tests. Erases card.
@@ -144,13 +144,15 @@ PROJ_OBJ_CF2 += platformservice.o sound_cf2.o extrx.o sysload.o mem_cf2.o
 # Stabilizer modules
 PROJ_OBJ += commander.o crtp_commander.o crtp_commander_rpyt.o
 PROJ_OBJ += crtp_commander_generic.o crtp_localization_service.o
-PROJ_OBJ += attitude_pid_controller.o sensfusion6.o stabilizer.o
-PROJ_OBJ += position_estimator_altitude.o position_controller_pid.o
+PROJ_OBJ +=  sensfusion6.o stabilizer.o
+PROJ_OBJ += position_estimator_altitude.o
 PROJ_OBJ += estimator.o estimator_complementary.o
 PROJ_OBJ += controller_$(CONTROLLER).o
 PROJ_OBJ += power_distribution_$(POWER_DISTRIBUTION).o
 PROJ_OBJ_CF2 += estimator_kalman.o
-
+ifeq ($(CONTROLLER), pid)
+PROJ_OBJ += position_controller_pid.o attitude_pid_controller.o
+endif
 
 # Deck Core
 PROJ_OBJ_CF2 += deck.o deck_info.o deck_drivers.o deck_test.o
@@ -162,20 +164,20 @@ PROJ_OBJ_CF2 += deck_analog.o
 PROJ_OBJ_CF2 += deck_spi.o
 
 # Decks
-PROJ_OBJ_CF2 += bigquad.o
-PROJ_OBJ_CF2 += rzr.o
+#PROJ_OBJ_CF2 += bigquad.o
+#PROJ_OBJ_CF2 += rzr.o
 PROJ_OBJ_CF2 += ledring12.o
-PROJ_OBJ_CF2 += buzzdeck.o
-PROJ_OBJ_CF2 += gtgps.o
+#PROJ_OBJ_CF2 += buzzdeck.o
+#PROJ_OBJ_CF2 += gtgps.o
 PROJ_OBJ_CF2 += cppmdeck.o
 PROJ_OBJ_CF2 += usddeck.o
-PROJ_OBJ_CF2 += zranger.o
+#PROJ_OBJ_CF2 += zranger.o
 PROJ_OBJ_CF2 += locodeck.o
 PROJ_OBJ_CF2 += lpsTwrTag.o
 PROJ_OBJ_CF2 += lpsTdoaTag.o
 PROJ_OBJ_CF2 += outlierFilter.o
-PROJ_OBJ_CF2 += flowdeck.o
-PROJ_OBJ_CF2 += oa.o
+#PROJ_OBJ_CF2 += flowdeck.o
+#PROJ_OBJ_CF2 += oa.o
 
 ifeq ($(LPS_TDOA_ENABLE), 1)
 CFLAGS += -DLPS_TDOA_ENABLE

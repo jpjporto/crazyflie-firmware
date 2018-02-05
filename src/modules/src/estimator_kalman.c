@@ -158,6 +158,17 @@ static inline bool stateEstimatorHasTOFPacket(tofMeasurement_t *tof) {
   return (pdTRUE == xQueueReceive(tofDataQueue, tof, 0));
 }
 
+#ifdef KALMAN_USE_MAG_UPDATE
+static void stateEstimatorUpdateWithMagnetometer(float heading);
+
+static float magStdDev = 0.1f;
+static float magRange[3] = {0.4154792f, 0.3742313f, 0.3929803f};
+static float magOffset[3] = {0.8234589f, 0.8482076f, 0.1424929f};
+#ifdef MAG_LEARNING
+static float magLimits[6] = {1.2389381f, 0.4079796f, 1.2224389f, 0.4739763f, 0.5354732f, -0.2504875f};
+#endif
+#endif
+
 /**
  * Constants used in the estimator
  */
@@ -166,7 +177,7 @@ static inline bool stateEstimatorHasTOFPacket(tofMeasurement_t *tof) {
 #define RAD_TO_DEG (180.0f/PI)
 
 #define GRAVITY_MAGNITUDE (9.81f) // we use the magnitude such that the sign/direction is explicit in calculations
-#define CRAZYFLIE_WEIGHT_grams (27.0f)
+#define CRAZYFLIE_WEIGHT_grams (33.1f)
 
 //thrust is thrust mapped for 65536 <==> 60 GRAMS!
 #define CONTROL_TO_ACC (GRAVITY_MAGNITUDE*60.0f/CRAZYFLIE_WEIGHT_grams/65536.0f)
@@ -383,7 +394,11 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
   }
 
   // Average the thrust command from the last timestep, generated externally by the controller
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+  thrustAccumulator += control->thrust * 30.2114811f; // thrust is in N, we need ms^-2 (divide by mass of cf, 32.4675331 = 1/(0.0308) = 1/mass)
+#else
   thrustAccumulator += control->thrust * CONTROL_TO_ACC; // thrust is in grams, we need ms^-2
+#endif
   thrustAccumulatorCount++;
 
   // Run the system dynamics to predict the state forward.
@@ -1253,10 +1268,25 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
   // Save attitude, adjusted for the legacy CF2 body coordinate system
   state->attitude = (attitude_t){
       .timestamp = tick,
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+      .roll = roll,
+      .pitch = pitch,
+      .yaw = yaw
+#else
       .roll = roll*RAD_TO_DEG,
       .pitch = -pitch*RAD_TO_DEG,
       .yaw = yaw*RAD_TO_DEG
+#endif
   };
+  
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+  state->attitudeRate = (attitude_t){
+      .timestamp = tick,
+      .roll = sensors->gyro.x * DEG_TO_RAD,
+      .pitch = sensors->gyro.y * DEG_TO_RAD,
+      .yaw = sensors->gyro.z * DEG_TO_RAD
+  };
+#endif
 
   // Save quaternion, hopefully one day this could be used in a better controller.
   // Note that this is not adjusted for the legacy coordinate system

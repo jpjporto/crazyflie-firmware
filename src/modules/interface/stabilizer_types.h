@@ -133,6 +133,9 @@ typedef struct sensorData_s {
 
 typedef struct state_s {
   attitude_t attitude;      // deg (legacy CF2 body coordinate system, where pitch is inverted)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+  attitude_t attitudeRate;
+#endif
   quaternion_t attitudeQuaternion;
   point_t position;         // m
   velocity_t velocity;      // m/s
@@ -140,10 +143,18 @@ typedef struct state_s {
 } state_t;
 
 typedef struct control_s {
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+  float roll;
+  float pitch;
+  float yaw;
+  float thrust;
+  uint8_t enabled;
+#else
   int16_t roll;
   int16_t pitch;
   int16_t yaw;
   float thrust;
+#endif
 } control_t;
 
 typedef enum mode_e {
@@ -222,6 +233,7 @@ typedef struct tofMeasurement_s {
 #define RATE_MAIN_LOOP RATE_1000_HZ
 #define ATTITUDE_RATE RATE_500_HZ
 #define POSITION_RATE RATE_100_HZ
+#define HINF_RATE RATE_500_HZ
 
 #define RATE_DO_EXECUTE(RATE_HZ, TICK) ((TICK % (RATE_MAIN_LOOP / RATE_HZ)) == 0)
 
