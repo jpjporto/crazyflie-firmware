@@ -28,11 +28,23 @@
 
 #include "stabilizer_types.h"
 
+#ifdef CONTROLLER_TYPE_hinf
+void hinfControllerInit(void);
+void hinfController(control_t *control, setpoint_t *setpoint,
+                                         const state_t *state,
+                                         const uint32_t tick);
+#elif CONTROLLER_TYPE_lqr
+void lqrControllerInit(void);
+void lqrController(control_t *control, setpoint_t *setpoint,
+                                         const state_t *state,
+                                         const uint32_t tick);
+#else
 void stateControllerInit(void);
 bool stateControllerTest(void);
 void stateController(control_t *control, setpoint_t *setpoint,
                                          const sensorData_t *sensors,
                                          const state_t *state,
                                          const uint32_t tick);
+#endif
 
 #endif //__CONTROLLER_H__

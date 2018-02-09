@@ -48,6 +48,7 @@ typedef enum
 {
   EXT_POSITION  = 0,
   GENERIC_TYPE  = 1,
+  BROADCAST_POS = 2,
 } locsrvChannels_t;
 
 typedef struct
@@ -70,6 +71,13 @@ typedef struct
   uint32_t timestamp; // FreeRTOS ticks
 } ExtPositionCache;
 
+typedef struct
+{
+  struct CrtpBroadExtPosition targetVal[2];
+  bool activeSide;
+  uint32_t timestamp; // FreeRTOS ticks
+} ExtBroadPosCache;
+
 // Struct for logging position information
 static positionMeasurement_t ext_pos;
 static ExtPositionCache crtpExtPosCache;
@@ -81,6 +89,10 @@ static bool isInit = false;
 static void locSrvCrtpCB(CRTPPacket* pk);
 static void extPositionHandler(CRTPPacket* pk);
 static void genericLocHandle(CRTPPacket* pk);
+
+static void broadcastPosHandler(CRTPPacket* pk);
+static ExtBroadPosCache crtpBroadExtPosCache;
+//static positionMeasurement_t ext_pos_multi[5];
 
 static uint16_t total_recv = 0;
 
@@ -103,10 +115,13 @@ static void locSrvCrtpCB(CRTPPacket* pk)
       break;
     case GENERIC_TYPE:
       genericLocHandle(pk);
+      break;
+    case BROADCAST_POS:
+      broadcastPosHandler(pk);
+      break;
     default:
       break;
   }
-  total_recv++;
 }
 
 static void extPositionHandler(CRTPPacket* pk)
@@ -136,6 +151,13 @@ static void genericLocHandle(CRTPPacket* pk)
   }
 }
 
+static void broadcastPosHandler(CRTPPacket* pk)
+{
+  crtpBroadExtPosCache.targetVal[!crtpBroadExtPosCache.activeSide] = *((struct CrtpBroadExtPosition*)pk->data);
+  crtpBroadExtPosCache.activeSide = !crtpBroadExtPosCache.activeSide;
+  crtpBroadExtPosCache.timestamp = xTaskGetTickCount();
+}
+
 bool getExtPosition(state_t *state)
 {
   // Only use position information if it's valid and recent
@@ -147,6 +169,28 @@ bool getExtPosition(state_t *state)
     ext_pos.stdDev = 0.01;
     estimatorKalmanEnqueuePosition(&ext_pos);
 
+    return true;
+  }
+  
+  if ((xTaskGetTickCount() - crtpBroadExtPosCache.timestamp) < M2T(5)) {
+    total_recv++;
+    ext_pos.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x0 / 8000.0f;
+    ext_pos.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y0 / 8000.0f;
+    ext_pos.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z0 / 8000.0f;
+    state->poscf2.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x1 / 8000.0f;
+    state->poscf2.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y1 / 8000.0f;
+    state->poscf2.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z1 / 8000.0f;
+    state->poscf3.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x2 / 8000.0f;
+    state->poscf3.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y2 / 8000.0f;
+    state->poscf3.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z2 / 8000.0f;
+    //ext_pos_multi[3].x = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x3;
+    //ext_pos_multi[3].y = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y3;
+    //ext_pos_multi[3].z = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z3;
+    //ext_pos_multi[4].x = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x4;
+    //ext_pos_multi[4].y = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y4;
+    //ext_pos_multi[4].z = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z4;
+    ext_pos.stdDev = 0.01;
+    estimatorKalmanEnqueuePosition(&ext_pos);
     return true;
   }
   return false;

@@ -934,6 +934,15 @@ static void stateEstimatorUpdateWithBaro(baro_t *baro)
 
 static void stateEstimatorUpdateWithPosition(positionMeasurement_t *xyz)
 {
+  static uint8_t ext_pos_flag = 0;
+  if(ext_pos_flag == 0)
+  {
+    //S[STATE_X] = xyz->pos[0];
+    //S[STATE_Y] = xyz->pos[1];
+    //S[STATE_Z] = xyz->pos[2];
+    resetEstimation = true;
+    ext_pos_flag = 1;
+  }
   // a direct measurement of states x, y, and z
   // do a scalar update for each state, since this should be faster than updating all together
   for (int i=0; i<3; i++) {

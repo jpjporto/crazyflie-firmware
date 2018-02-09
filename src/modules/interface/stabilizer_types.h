@@ -140,6 +140,11 @@ typedef struct state_s {
   point_t position;         // m
   velocity_t velocity;      // m/s
   acc_t acc;                // Gs (but acc.z without considering gravity)
+
+  point_t poscf1;
+  point_t poscf2;
+  point_t poscf3;
+
 } state_t;
 
 typedef struct control_s {
@@ -174,6 +179,10 @@ typedef struct setpoint_s {
   velocity_t velocity;      // m/s
   acc_t acceleration;       // m/s^2
   bool velocity_body;       // true if velocity is given in body frame; false if velocity is given in world frame
+  
+  point_t cf1;
+  point_t cf2;
+  point_t cf3;
 
   struct {
     stab_mode_t x;

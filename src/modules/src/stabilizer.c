@@ -187,6 +187,12 @@ LOG_ADD(LOG_FLOAT, y, &setpoint.position.y)
 LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
 LOG_GROUP_STOP(setpoint)
 
+LOG_GROUP_START(cfsetpoint)
+LOG_ADD(LOG_FLOAT, x, &setpoint.cf1.x)
+LOG_ADD(LOG_FLOAT, y, &setpoint.cf1.y)
+LOG_ADD(LOG_FLOAT, z, &setpoint.cf1.z)
+LOG_GROUP_STOP(cfsetpoint)
+
 LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
