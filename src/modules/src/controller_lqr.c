@@ -68,9 +68,9 @@ void lqrController(control_t *control, setpoint_t *setpoint,
   
   if (RATE_DO_EXECUTE(HINF_RATE, tick) && (control->enabled)) 
   {
-    e[0] = (setpoint->cf1.x - state->position.x);
-    e[1] = (setpoint->cf1.y - state->position.y);
-    e[2] = (setpoint->cf1.z - state->position.z);
+    e[0] = (setpoint->poscf2.x - state->position.x);
+    e[1] = (setpoint->poscf2.y - state->position.y);
+    e[2] = (setpoint->poscf2.z - state->position.z);
     e[3] = (0.0f - state->velocity.x);
     e[4] = (0.0f - state->velocity.y);
     e[5] = (0.0f - state->velocity.z);

@@ -394,7 +394,7 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
   }
 
   // Average the thrust command from the last timestep, generated externally by the controller
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
   thrustAccumulator += control->thrust * 30.2114811f; // thrust is in N, we need ms^-2 (divide by mass of cf, 32.4675331 = 1/(0.0308) = 1/mass)
 #else
   thrustAccumulator += control->thrust * CONTROL_TO_ACC; // thrust is in grams, we need ms^-2
@@ -937,9 +937,6 @@ static void stateEstimatorUpdateWithPosition(positionMeasurement_t *xyz)
   static uint8_t ext_pos_flag = 0;
   if(ext_pos_flag == 0)
   {
-    //S[STATE_X] = xyz->pos[0];
-    //S[STATE_Y] = xyz->pos[1];
-    //S[STATE_Z] = xyz->pos[2];
     resetEstimation = true;
     ext_pos_flag = 1;
   }
@@ -1277,7 +1274,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
   // Save attitude, adjusted for the legacy CF2 body coordinate system
   state->attitude = (attitude_t){
       .timestamp = tick,
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
       .roll = roll,
       .pitch = pitch,
       .yaw = yaw
@@ -1288,7 +1285,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
 #endif
   };
   
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
   state->attitudeRate = (attitude_t){
       .timestamp = tick,
       .roll = sensors->gyro.x * DEG_TO_RAD,

@@ -92,9 +92,14 @@ static void genericLocHandle(CRTPPacket* pk);
 
 static void broadcastPosHandler(CRTPPacket* pk);
 static ExtBroadPosCache crtpBroadExtPosCache;
-//static positionMeasurement_t ext_pos_multi[5];
+static uint8_t prevSeqNum[3];
 
-static uint16_t total_recv = 0;
+#if CFNUM >= 2
+static point_t prevPoscf1;
+  #if CFNUM == 3
+static point_t prevPoscf2;
+  #endif
+#endif
 
 void locSrvInit()
 {
@@ -173,25 +178,69 @@ bool getExtPosition(state_t *state)
   }
   
   if ((xTaskGetTickCount() - crtpBroadExtPosCache.timestamp) < M2T(5)) {
-    total_recv++;
-    ext_pos.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x0 / 8000.0f;
-    ext_pos.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y0 / 8000.0f;
-    ext_pos.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z0 / 8000.0f;
-    state->poscf2.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x1 / 8000.0f;
-    state->poscf2.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y1 / 8000.0f;
-    state->poscf2.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z1 / 8000.0f;
-    state->poscf3.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x2 / 8000.0f;
-    state->poscf3.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y2 / 8000.0f;
-    state->poscf3.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z2 / 8000.0f;
-    //ext_pos_multi[3].x = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x3;
-    //ext_pos_multi[3].y = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y3;
-    //ext_pos_multi[3].z = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z3;
-    //ext_pos_multi[4].x = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x4;
-    //ext_pos_multi[4].y = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y4;
-    //ext_pos_multi[4].z = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z4;
-    ext_pos.stdDev = 0.01;
-    estimatorKalmanEnqueuePosition(&ext_pos);
-    return true;
+    uint8_t seqDiff0 = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq0 - prevSeqNum[0];
+    if(seqDiff0 != 0) {
+      prevSeqNum[0] = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq0;
+#if defined(CONTROLLER_TYPE_hinfdec) && CFNUM >= 2
+      state->poscf1.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x0 / 8000.0f;
+      state->poscf1.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y0 / 8000.0f;
+      state->poscf1.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z0 / 8000.0f;
+      //Decentralized controller, estimate velocity of leader
+      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * 100 * seqDiff0; //Vicon updates every 100hz
+      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * 100 * seqDiff0;
+      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * 100 * seqDiff0;
+      prevPoscf1.x = state->poscf1.x;
+      prevPoscf1.y = state->poscf1.y;
+      prevPoscf1.z = state->poscf1.z;
+#else
+      ext_pos.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x0 / 8000.0f;
+      ext_pos.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y0 / 8000.0f;
+      ext_pos.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z0 / 8000.0f;
+      ext_pos.stdDev = 0.01;
+      estimatorKalmanEnqueuePosition(&ext_pos);
+      return true;
+#endif
+    }
+#if CFNUM >= 2
+    uint8_t seqDiff1 = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq1 - prevSeqNum[1];
+    if(seqDiff1 != 0) {
+      prevSeqNum[1] = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq1;
+      state->poscf2.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x1 / 8000.0f;
+      state->poscf2.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y1 / 8000.0f;
+      state->poscf2.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z1 / 8000.0f;
+  #if CFNUM == 3
+      state->poscf2.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x1 / 8000.0f;
+      state->poscf2.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y1 / 8000.0f;
+      state->poscf2.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z1 / 8000.0f;
+      //Decentralized controller, estimate velocity of robot in front
+      state->velcf2.x = (state->poscf2.x - prevPoscf2.x) * 100 * seqDiff1; //Vicon updates every 100hz
+      state->velcf2.y = (state->poscf2.y - prevPoscf2.y) * 100 * seqDiff1;
+      state->velcf2.z = (state->poscf2.z - prevPoscf2.z) * 100 * seqDiff1;
+      prevPoscf2.x = state->poscf2.x;
+      prevPoscf2.y = state->poscf2.y;
+      prevPoscf2.z = state->poscf2.z;
+  #else
+      ext_pos.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x1 / 8000.0f;
+      ext_pos.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y1 / 8000.0f;
+      ext_pos.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z1 / 8000.0f;
+      ext_pos.stdDev = 0.01;
+      estimatorKalmanEnqueuePosition(&ext_pos);
+      return true;
+  #endif
+    }
+  #if CFNUM == 3
+    uint8_t seqDiff2 = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq2 - prevSeqNum[2];
+    if(seqDiff2 != 0) {
+      prevSeqNum[2] = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq2;
+      ext_pos.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x2 / 8000.0f;
+      ext_pos.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y2 / 8000.0f;
+      ext_pos.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z2 / 8000.0f;
+      ext_pos.stdDev = 0.01;
+      estimatorKalmanEnqueuePosition(&ext_pos);
+      return true;
+    }
+  #endif
+#endif
   }
   return false;
 }
@@ -236,7 +285,6 @@ LOG_GROUP_START(ext_pos)
   LOG_ADD(LOG_FLOAT, X, &ext_pos.x)
   LOG_ADD(LOG_FLOAT, Y, &ext_pos.y)
   LOG_ADD(LOG_FLOAT, Z, &ext_pos.z)
-  LOG_ADD(LOG_UINT16, recv, &total_recv)
 LOG_GROUP_STOP(ext_pos)
 
 PARAM_GROUP_START(locSrv)

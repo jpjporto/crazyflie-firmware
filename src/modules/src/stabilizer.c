@@ -37,6 +37,7 @@
 #include "sensors.h"
 #include "commander.h"
 #include "crtp_localization_service.h"
+#include "crtp_commander.h"
 #include "sitaw.h"
 #include "controller.h"
 #include "power_distribution.h"
@@ -63,7 +64,7 @@ void stabilizerInit(StateEstimatorType estimator)
 
   sensorsInit();
   stateEstimatorInit(estimator);
-#ifdef CONTROLLER_TYPE_hinf
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
   hinfControllerInit();
 #elif CONTROLLER_TYPE_lqr
   lqrControllerInit();
@@ -88,7 +89,7 @@ bool stabilizerTest(void)
 
   pass &= sensorsTest();
   pass &= stateEstimatorTest();
-#if !defined(CONTROLLER_TYPE_hinf) && !defined(CONTROLLER_TYPE_lqr)
+#if !defined(CONTROLLER_TYPE_hinf) && !defined(CONTROLLER_TYPE_lqr) && !defined(CONTROLLER_TYPE_hinfdec)
   pass &= stateControllerTest();
 #endif
   pass &= powerDistributionTest();
@@ -135,11 +136,15 @@ static void stabilizerTask(void* param)
     getExtPosition(&state);
     stateEstimator(&state, &sensorData, &control, tick);
 
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
+    getSetpoint(&setpoint);
+#else
     commanderGetSetpoint(&setpoint, &state);
+#endif
 
     sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
 
-#ifdef CONTROLLER_TYPE_hinf
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
     hinfController(&control, &setpoint, &state, tick);
 #elif CONTROLLER_TYPE_lqr
     lqrController(&control, &setpoint, &state, tick);
@@ -188,16 +193,22 @@ LOG_ADD(LOG_FLOAT, z, &setpoint.position.z)
 LOG_GROUP_STOP(setpoint)
 
 LOG_GROUP_START(cfsetpoint)
-LOG_ADD(LOG_FLOAT, x, &setpoint.cf1.x)
-LOG_ADD(LOG_FLOAT, y, &setpoint.cf1.y)
-LOG_ADD(LOG_FLOAT, z, &setpoint.cf1.z)
+LOG_ADD(LOG_FLOAT, x, &setpoint.poscf1.x)
+LOG_ADD(LOG_FLOAT, y, &setpoint.poscf1.y)
+LOG_ADD(LOG_FLOAT, z, &setpoint.poscf1.z)
 LOG_GROUP_STOP(cfsetpoint)
+
+LOG_GROUP_START(setpointvels)
+  LOG_ADD(LOG_FLOAT, x, &setpoint.velcf1.x)
+  LOG_ADD(LOG_FLOAT, y, &setpoint.velcf1.y)
+  LOG_ADD(LOG_FLOAT, z, &setpoint.velcf1.z)
+LOG_GROUP_STOP(setpointvels)
 
 LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
 LOG_ADD(LOG_FLOAT, thrust, &control.thrust)
 #else
 LOG_ADD(LOG_UINT16, thrust, &control.thrust)
@@ -245,7 +256,7 @@ LOG_ADD(LOG_FLOAT, z, &sensorData.mag.z)
 LOG_GROUP_STOP(mag)
 
 LOG_GROUP_START(controller)
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
 LOG_ADD(LOG_FLOAT, ctr_thrust, &control.thrust)
 LOG_ADD(LOG_FLOAT, ctr_roll, &control.roll)
 LOG_ADD(LOG_FLOAT, ctr_pitch, &control.pitch)

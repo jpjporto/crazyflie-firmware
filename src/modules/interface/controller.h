@@ -28,7 +28,7 @@
 
 #include "stabilizer_types.h"
 
-#ifdef CONTROLLER_TYPE_hinf
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
 void hinfControllerInit(void);
 void hinfController(control_t *control, setpoint_t *setpoint,
                                          const state_t *state,

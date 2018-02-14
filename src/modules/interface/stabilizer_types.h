@@ -133,7 +133,7 @@ typedef struct sensorData_s {
 
 typedef struct state_s {
   attitude_t attitude;      // deg (legacy CF2 body coordinate system, where pitch is inverted)
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
   attitude_t attitudeRate;
 #endif
   quaternion_t attitudeQuaternion;
@@ -144,11 +144,15 @@ typedef struct state_s {
   point_t poscf1;
   point_t poscf2;
   point_t poscf3;
-
+#ifdef SETPOINT_VEL
+  velocity_t velcf1;
+  velocity_t velcf2;
+  velocity_t velcf3;
+#endif
 } state_t;
 
 typedef struct control_s {
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr)
+#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
   float roll;
   float pitch;
   float yaw;
@@ -180,9 +184,13 @@ typedef struct setpoint_s {
   acc_t acceleration;       // m/s^2
   bool velocity_body;       // true if velocity is given in body frame; false if velocity is given in world frame
   
-  point_t cf1;
-  point_t cf2;
-  point_t cf3;
+  point_t poscf1;
+  point_t poscf2;
+  point_t poscf3;
+
+  velocity_t velcf1;
+  velocity_t velcf2;
+  velocity_t velcf3;
 
   struct {
     stab_mode_t x;

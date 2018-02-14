@@ -17,10 +17,6 @@ static bool isInit = false;
 static float xHinf[HINF_STATES];
 static float e[12];
 
-#ifdef CTRL_DEBUG
-static uint8_t ctrTest = 0;
-#endif
-
 #define DEG_TO_RAD 0.0174533f
 
 void hinfControllerInit(void)
@@ -36,62 +32,38 @@ void hinfControllerInit(void)
   isInit= true;
 }
 
-void hinfController(control_t *control, setpoint_t *setpoint,
-                                         const state_t *state,
-                                         const uint32_t tick)
+void hinfController(control_t *control, setpoint_t *setpoint, const state_t *state, const uint32_t tick)
 {
   float u[4];
   float xHinfNext[HINF_STATES];
   
-  if(setpoint->cf1.z > 0.0f)
-  {
+  if(setpoint->poscf1.z > 0.0f) {
     control->enabled = 1;
-  }
-  else
-  {
+  } else {
     control->enabled = 0;
   }
   
-  if ( fabsf(state->attitude.pitch) > 1.1f || fabsf(state->attitude.roll) > 1.1f)
-  {
+  if ( fabsf(state->attitude.pitch) > 1.1f || fabsf(state->attitude.roll) > 1.1f) {
     control->enabled = 0;
-  }
-  else if (state->position.z >= 2.5f)
-  {
+  } else if (state->position.z >= 2.5f) {
     control->enabled = 0;
   }
   
-#ifdef CTRL_DEBUG
-  if(ctrTest != 0)
-  {
-    control->enabled = 1;
-  }
-  else
-  {
-    control->enabled = 0;
-  }
-#endif
   
   if (RATE_DO_EXECUTE(HINF_RATE, tick) && (control->enabled)) 
   {
-    e[0] = (setpoint->cf1.x - state->position.x);
-    e[1] = (setpoint->cf1.y - state->position.y);
-    e[2] = (setpoint->cf1.z - state->position.z);
-    e[3] = (0.0f - state->velocity.x);
-    e[4] = (0.0f - state->velocity.y);
-    e[5] = (0.0f - state->velocity.z);
+    e[0] = (setpoint->poscf1.x - state->position.x);
+    e[1] = (setpoint->poscf1.y - state->position.y);
+    e[2] = (setpoint->poscf1.z - state->position.z);
+    e[3] = (setpoint->velcf1.x - state->velocity.x);
+    e[4] = (setpoint->velcf1.y - state->velocity.y);
+    e[5] = (setpoint->velcf1.z - state->velocity.z);
     e[6] = (0.0f - state->attitude.roll);
     e[7] = (0.0f - state->attitude.pitch);
     e[8] = (setpoint->attitude.yaw - state->attitude.yaw); 
     e[9] = (0.0f - state->attitudeRate.roll);
     e[10] = (0.0f - state->attitudeRate.pitch);
     e[11] = (0.0f - state->attitudeRate.yaw);
-/*    e[0] = 0;
-    e[1] = (0.0f - state->attitude.pitch);
-    e[2] = 0; 
-    e[3] = 0;
-    e[4] = (0.0f - state->attitudeRate.pitch);
-    e[5] = 0; */
 
     u[0] = -2.0636132e-01f*xHinf[6]-1.2786106e+00f*xHinf[10]-1.3030629e-01f*xHinf[15]+2.4666642e-01f*e[2]+4.0848694e+00f*e[5];
     u[1] = -2.3245355e-04f*xHinf[2]-8.8148443e-07f*xHinf[4]-1.0615231e-03f*xHinf[5]+8.3435381e-08f*xHinf[8]-1.8976266e-03f*xHinf[9]+1.5828530e-08f*xHinf[11]+1.7795403e-03f*xHinf[12]-3.2220782e-08f*xHinf[13]+1.3405423e-03f*xHinf[14]-1.0121283e-05f*e[1]-1.1210024e-02f*e[4]+5.5704650e-02f*e[6]+4.7441574e-07f*e[9];
@@ -118,12 +90,8 @@ void hinfController(control_t *control, setpoint_t *setpoint,
 
     
     memcpy(xHinf, xHinfNext, sizeof(xHinf));
-/*    for(int i = 0; i<HINF_STATES; i++)
-    {
-      xHinf[i] = xHinfNext[i];
-    }*/
     
-    control->thrust = u[0] + 0.30f;
+    control->thrust = u[0] + 0.31f;
     control->roll = u[1];
     control->pitch = u[2];
     control->yaw = u[3];
@@ -131,9 +99,3 @@ void hinfController(control_t *control, setpoint_t *setpoint,
   }
 
 }
-
-#ifdef CTRL_DEBUG
-PARAM_GROUP_START(hinf)
-  PARAM_ADD(PARAM_UINT8, ctrTest, &ctrTest)
-PARAM_GROUP_STOP(hinf)
-#endif

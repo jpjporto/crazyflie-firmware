@@ -33,6 +33,7 @@
 #include "param.h"
 #include "FreeRTOS.h"
 #include "num.h"
+#include "task.h"
 
 #define MIN_THRUST  1000
 #define MAX_THRUST  60000
@@ -50,6 +51,7 @@ struct CommanderCrtpLegacyValues
 
 struct CommanderCrtpBroadcast
 {
+  uint8_t seq;
   int16_t xs0;
   int16_t ys0;
   int16_t zs0;
@@ -222,19 +224,58 @@ void crtpCommanderRpytDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
   }
 }
 
-void crtpDecodeBroadcastSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
+#ifdef SETPOINT_VEL
+static point_t prevSetpoint1;
+#endif
+static uint8_t prevSeqNum;
+
+typedef struct
 {
-  struct CommanderCrtpBroadcast *values = (struct CommanderCrtpBroadcast*)pk->data;
-  
-  setpoint->cf1.x = (float)values->xs0 / 1000.0f;
-  setpoint->cf1.y = (float)values->ys0 / 1000.0f;
-  setpoint->cf1.z = (float)values->zs0 / 1000.0f;
-  setpoint->cf2.x = (float)values->xs1 / 1000.0f;
-  setpoint->cf2.y = (float)values->ys1 / 1000.0f;
-  setpoint->cf2.z = (float)values->zs1 / 1000.0f;
-  setpoint->cf3.x = (float)values->xs2 / 1000.0f;
-  setpoint->cf3.y = (float)values->ys2 / 1000.0f;
-  setpoint->cf3.z = (float)values->zs2 / 1000.0f;
+  struct CommanderCrtpBroadcast targetVal[2];
+  bool activeSide;
+  uint32_t timestamp; // FreeRTOS ticks
+} BroadSetCache;
+static BroadSetCache crtpBroadSetpointCache;
+
+void broadcastSetpointHandler(CRTPPacket* pk)
+{
+  crtpBroadSetpointCache.targetVal[!crtpBroadSetpointCache.activeSide] = *((struct CommanderCrtpBroadcast*)pk->data);
+  crtpBroadSetpointCache.activeSide = !crtpBroadSetpointCache.activeSide;
+  crtpBroadSetpointCache.timestamp = xTaskGetTickCount();
+}
+
+//void crtpDecodeBroadcastSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
+void getSetpoint(setpoint_t *setpoint)
+{
+  if ((xTaskGetTickCount() - crtpBroadSetpointCache.timestamp) < M2T(5)) {
+    struct CommanderCrtpBroadcast *values = &crtpBroadSetpointCache.targetVal[!crtpBroadSetpointCache.activeSide];
+    uint8_t seqDiff = values->seq - prevSeqNum;
+    if(seqDiff != 0) {
+      prevSeqNum = values->seq;
+      setpoint->poscf1.x = (float)values->xs0 / 1000.0f;
+      setpoint->poscf1.y = (float)values->ys0 / 1000.0f;
+      setpoint->poscf1.z = (float)values->zs0 / 1000.0f;
+  #if CFNUM >= 2
+      setpoint->poscf2.x = (float)values->xs1 / 1000.0f;
+      setpoint->poscf2.y = (float)values->ys1 / 1000.0f;
+      setpoint->poscf2.z = (float)values->zs1 / 1000.0f;
+    #if CFNUM == 3
+      setpoint->poscf2.x = (float)values->xs2 / 1000.0f;
+      setpoint->poscf2.y = (float)values->ys2 / 1000.0f;
+      setpoint->poscf2.z = (float)values->zs2 / 1000.0f;
+    #endif
+  #endif
+
+#ifdef SETPOINT_VEL
+      setpoint->velcf1.x = (setpoint->poscf1.x - prevSetpoint1.x) * 500 * seqDiff; // This line assumes we are getting a packet every 2ms.
+      setpoint->velcf1.y = (setpoint->poscf1.y - prevSetpoint1.y) * 500 * seqDiff; // This assumption gives a more conservative approximation of the derivative,
+      setpoint->velcf1.z = (setpoint->poscf1.z - prevSetpoint1.z) * 500 * seqDiff; // but it might be the best option given that xTaskGetTickCount() only has 1ms resolution.
+      prevSetpoint1.x = setpoint->poscf1.x;
+      prevSetpoint1.y = setpoint->poscf1.y;
+      prevSetpoint1.z = setpoint->poscf1.z;
+#endif
+    }
+  }
 }
 
 // Params for flight modes

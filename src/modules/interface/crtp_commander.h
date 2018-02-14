@@ -35,4 +35,7 @@ void crtpCommanderRpytDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk);
 void crtpCommanderGenericDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk);
 void crtpDecodeBroadcastSetpoint(setpoint_t *setpoint, CRTPPacket *pk);
 
+void broadcastSetpointHandler(CRTPPacket* pk);
+void getSetpoint(setpoint_t *setpoint);
+
 #endif /* CRTP_COMMANDER_H_ */

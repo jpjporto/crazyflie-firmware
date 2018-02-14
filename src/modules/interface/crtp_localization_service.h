@@ -40,21 +40,18 @@ struct CrtpExtPosition
 
 struct CrtpBroadExtPosition
 {
+  uint8_t seq0;
   int16_t x0; // in m
   int16_t y0; // in m
   int16_t z0; // in m
+  uint8_t seq1;
   int16_t x1; // in m
   int16_t y1; // in m
   int16_t z1; // in m
+  uint8_t seq2;
   int16_t x2; // in m
   int16_t y2; // in m
   int16_t z2; // in m
-/*  int16_t x3; // in m
-  int16_t y3; // in m
-  int16_t z3; // in m
-  int16_t x4; // in m
-  int16_t y4; // in m
-  int16_t z4; // in m*/
 } __attribute__((packed));
 
 typedef enum
