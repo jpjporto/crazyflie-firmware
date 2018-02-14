@@ -143,11 +143,9 @@ typedef struct state_s {
 
   point_t poscf1;
   point_t poscf2;
-  point_t poscf3;
 #ifdef SETPOINT_VEL
   velocity_t velcf1;
   velocity_t velcf2;
-  velocity_t velcf3;
 #endif
 } state_t;
 

@@ -252,17 +252,17 @@ void getSetpoint(setpoint_t *setpoint)
     uint8_t seqDiff = values->seq - prevSeqNum;
     if(seqDiff != 0) {
       prevSeqNum = values->seq;
-      setpoint->poscf1.x = (float)values->xs0 / 1000.0f;
-      setpoint->poscf1.y = (float)values->ys0 / 1000.0f;
-      setpoint->poscf1.z = (float)values->zs0 / 1000.0f;
+      setpoint->poscf1.x = (float)values->xs0 / 8000.0f;
+      setpoint->poscf1.y = (float)values->ys0 / 8000.0f;
+      setpoint->poscf1.z = (float)values->zs0 / 8000.0f;
   #if CFNUM >= 2
-      setpoint->poscf2.x = (float)values->xs1 / 1000.0f;
-      setpoint->poscf2.y = (float)values->ys1 / 1000.0f;
-      setpoint->poscf2.z = (float)values->zs1 / 1000.0f;
+      setpoint->poscf2.x = (float)values->xs1 / 8000.0f;
+      setpoint->poscf2.y = (float)values->ys1 / 8000.0f;
+      setpoint->poscf2.z = (float)values->zs1 / 8000.0f;
     #if CFNUM == 3
-      setpoint->poscf2.x = (float)values->xs2 / 1000.0f;
-      setpoint->poscf2.y = (float)values->ys2 / 1000.0f;
-      setpoint->poscf2.z = (float)values->zs2 / 1000.0f;
+      setpoint->poscf2.x = (float)values->xs2 / 8000.0f;
+      setpoint->poscf2.y = (float)values->ys2 / 8000.0f;
+      setpoint->poscf2.z = (float)values->zs2 / 8000.0f;
     #endif
   #endif
 
