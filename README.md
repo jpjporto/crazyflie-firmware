@@ -2,6 +2,18 @@
 
 This project contains the source code for the Crazyflie 2.0 firmware.
 
+### Code differences between fork and upstream
+
+* Using a Hinf controller for attitude and position
+* Power distribution is based on desired forces and moments
+* Few changes to estimatorKalman to account for the different controller
+* Support for broadcast position and setpoint messages
+* Added extra variables to state and setpoint structs
+* Magnetometer is now disabled (reduced computational load)
+* Acc max range is [-4g,4g], and the gyro max range is [-1000, 1000] deg/s
+* Few changes to the tdoa algorithm
+
+
 ### Crazyflie 1.0 support
 
 The 2017.06 release was the last release with Crazyflie 1.0 support. If you want

@@ -389,9 +389,11 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
     gyroAccumulatorCount++;
   }
 
+#ifdef KALMAN_USE_MAG_UPDATE
   if (sensorsReadMag(&sensors->mag)) {
       // Currently the magnetometer doesn't play a part in the estimation
   }
+#endif
 
   // Average the thrust command from the last timestep, generated externally by the controller
 #if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
