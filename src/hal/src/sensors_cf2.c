@@ -50,6 +50,8 @@
 #include "sound.h"
 #include "filter.h"
 
+#include "log.h"
+
 /**
  * Enable 250Hz digital LPF mode. However does not work with
  * multiple slave reading through MPU9250 (MAG and BARO), only single for some reason.
@@ -61,8 +63,8 @@
 //#define SENSORS_ENABLE_MAG_AK8963
 #define MAG_GAUSS_PER_LSB     666.7f
 
-#define SENSORS_GYRO_FS_CFG       MPU6500_GYRO_FS_2000
-#define SENSORS_DEG_PER_LSB_CFG   MPU6500_DEG_PER_LSB_2000
+#define SENSORS_GYRO_FS_CFG       MPU6500_GYRO_FS_1000
+#define SENSORS_DEG_PER_LSB_CFG   MPU6500_DEG_PER_LSB_1000
 
 #define SENSORS_ACCEL_FS_CFG      MPU6500_ACCEL_FS_4
 #define SENSORS_G_PER_LSB_CFG     MPU6500_G_PER_LSB_4
@@ -86,7 +88,7 @@
 // Number of samples used in variance calculation. Changing this effects the threshold
 #define SENSORS_NBR_OF_BIAS_SAMPLES     1024
 // Variance threshold to take zero bias for gyro
-#define GYRO_VARIANCE_BASE          5000
+#define GYRO_VARIANCE_BASE          5000 * (4-SENSORS_GYRO_FS_CFG)
 #define GYRO_VARIANCE_THRESHOLD_X   (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Y   (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Z   (GYRO_VARIANCE_BASE)
@@ -287,7 +289,7 @@ void processAccGyroMeasurements(const uint8_t *buffer)
 #endif
   if (gyroBiasFound)
   {
-     processAccScale(ax, ay, az);
+    processAccScale(ax, ay, az);
   }
 
   sensors.gyro.x = -(gx - gyroBias.x) * SENSORS_DEG_PER_LSB_CFG;
