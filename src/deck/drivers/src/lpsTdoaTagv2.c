@@ -95,8 +95,19 @@ static bool isSeqNrConsecutive(uint8_t prevSeqNr, uint8_t currentSeqNr) {
   return (currentSeqNr == ((prevSeqNr + 1) & 0xFF));
 }
 
+static bool isSameFrame(const uint8_t Ar, const uint8_t An, const uint8_t packetIdx) {
+    if (Ar < An) {
+      return rxPacketBuffer[Ar].Idx == packetIdx;
+    }
+    else
+    {
+      return rxPacketBuffer[Ar].Idx == (packetIdx - 1);
+    }
+}
+
 static bool calcClockCorrection(double* clockCorrection, const uint8_t anchor, const rangePacket_t* packet, const dwTime_t* arrival) {
   if (! isSeqNrConsecutive(rxPacketBuffer[anchor].Idx, packet->Idx)) {
+    statsRejectedSeq++;
     return false;
   }
 
@@ -112,8 +123,10 @@ static bool calcClockCorrection(double* clockCorrection, const uint8_t anchor, c
 }
 
 static bool calcDistanceDiff(float* tdoaDistDiff, const uint8_t previousAnchor, const uint8_t anchor, const rangePacket_t* packet, const dwTime_t* arrival) {
-  if (! isSeqNrConsecutive(sequenceNrs[anchor], packet->Idx)) {
-    statsRejectedSeq++;
+//  if (! isSeqNrConsecutive(sequenceNrs[anchor], packet->Idx)) {
+//    return false;
+//  }
+  if (! isSameFrame(previousAnchor, anchor, packet->Idx)) {
     return false;
   }
   
