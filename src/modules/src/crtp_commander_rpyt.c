@@ -226,6 +226,9 @@ void crtpCommanderRpytDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
 
 #ifdef SETPOINT_VEL
 static point_t prevSetpoint1;
+#if CFNUM >=2
+static point_t prevSetpoint2;
+#endif
 #endif
 static uint8_t prevSeqNum;
 
@@ -260,9 +263,9 @@ void getSetpoint(setpoint_t *setpoint)
       setpoint->poscf2.y = (float)values->ys1 / 8000.0f;
       setpoint->poscf2.z = (float)values->zs1 / 8000.0f;
     #if CFNUM == 3
-      setpoint->poscf2.x = (float)values->xs2 / 8000.0f;
-      setpoint->poscf2.y = (float)values->ys2 / 8000.0f;
-      setpoint->poscf2.z = (float)values->zs2 / 8000.0f;
+      setpoint->poscf3.x = (float)values->xs2 / 8000.0f;
+      setpoint->poscf3.y = (float)values->ys2 / 8000.0f;
+      setpoint->poscf3.z = (float)values->zs2 / 8000.0f;
     #endif
   #endif
 
@@ -273,6 +276,14 @@ void getSetpoint(setpoint_t *setpoint)
       prevSetpoint1.x = setpoint->poscf1.x;
       prevSetpoint1.y = setpoint->poscf1.y;
       prevSetpoint1.z = setpoint->poscf1.z;
+  #if CFNUM >=2
+      setpoint->velcf2.x = (setpoint->poscf2.x - prevSetpoint2.x) * 500 * seqDiff; // This line assumes we are getting a packet every 2ms.
+      setpoint->velcf2.y = (setpoint->poscf2.y - prevSetpoint2.y) * 500 * seqDiff; // This assumption gives a more conservative approximation of the derivative,
+      setpoint->velcf2.z = (setpoint->poscf2.z - prevSetpoint2.z) * 500 * seqDiff; // but it might be the best option given that xTaskGetTickCount() only has 1ms resolution.
+      prevSetpoint2.x = setpoint->poscf2.x;
+      prevSetpoint2.y = setpoint->poscf2.y;
+      prevSetpoint2.z = setpoint->poscf2.z;
+  #endif
 #endif
     }
   }

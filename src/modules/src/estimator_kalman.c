@@ -1347,8 +1347,8 @@ void estimatorKalmanInit(void) {
   memset(P, 0, sizeof(S));
 
   // TODO: Can we initialize this more intelligently?
-  S[STATE_X] = 0.5;
-  S[STATE_Y] = 0.5;
+  S[STATE_X] = 2.5;//0.5;
+  S[STATE_Y] = 2.0;//0.5;
   S[STATE_Z] = 0;
   S[STATE_PX] = 0;
   S[STATE_PY] = 0;
