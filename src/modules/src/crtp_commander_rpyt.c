@@ -52,6 +52,7 @@ struct CommanderCrtpLegacyValues
 struct CommanderCrtpBroadcast
 {
   uint8_t seq;
+  uint8_t mode;
   int16_t xs0;
   int16_t ys0;
   int16_t zs0;
@@ -255,6 +256,7 @@ void getSetpoint(setpoint_t *setpoint)
     uint8_t seqDiff = values->seq - prevSeqNum;
     if(seqDiff != 0) {
       prevSeqNum = values->seq;
+      setpoint->sys_mode = values->mode;
       setpoint->poscf1.x = (float)values->xs0 / 8000.0f;
       setpoint->poscf1.y = (float)values->ys0 / 8000.0f;
       setpoint->poscf1.z = (float)values->zs0 / 8000.0f;

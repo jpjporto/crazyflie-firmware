@@ -189,6 +189,8 @@ typedef struct setpoint_s {
   velocity_t velcf1;
   velocity_t velcf2;
   velocity_t velcf3;
+  
+  uint8_t sys_mode;
 
   struct {
     stab_mode_t x;
