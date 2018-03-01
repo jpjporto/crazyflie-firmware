@@ -64,9 +64,9 @@ void stabilizerInit(StateEstimatorType estimator)
 
   sensorsInit();
   stateEstimatorInit(estimator);
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger) && !defined(CONTROLLER_TYPE_lqr)
   hinfControllerInit();
-#elif CONTROLLER_TYPE_lqr
+#elif defined(CONTROLLER_TYPE_lqr)
   lqrControllerInit();
 #else
   stateControllerInit();
@@ -89,7 +89,7 @@ bool stabilizerTest(void)
 
   pass &= sensorsTest();
   pass &= stateEstimatorTest();
-#if !defined(CONTROLLER_TYPE_hinf) && !defined(CONTROLLER_TYPE_lqr) && !defined(CONTROLLER_TYPE_hinfdec)
+#if defined(CONTROLLER_TYPE_pid) || defined(CONTROLLER_TYPE_mellinger)
   pass &= stateControllerTest();
 #endif
   pass &= powerDistributionTest();
@@ -136,7 +136,7 @@ static void stabilizerTask(void* param)
     getExtPosition(&state);
     stateEstimator(&state, &sensorData, &control, tick);
 
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
     getSetpoint(&setpoint);
 #else
     commanderGetSetpoint(&setpoint, &state);
@@ -144,9 +144,9 @@ static void stabilizerTask(void* param)
 
     sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
 
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger) && !defined(CONTROLLER_TYPE_lqr)
     hinfController(&control, &setpoint, &state, tick);
-#elif CONTROLLER_TYPE_lqr
+#elif defined(CONTROLLER_TYPE_lqr)
     lqrController(&control, &setpoint, &state, tick);
 #else
     stateController(&control, &setpoint, &sensorData, &state, tick);
@@ -208,7 +208,7 @@ LOG_GROUP_START(stabilizer)
 LOG_ADD(LOG_FLOAT, roll, &state.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &state.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &state.attitude.yaw)
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
 LOG_ADD(LOG_FLOAT, thrust, &control.thrust)
 #else
 LOG_ADD(LOG_UINT16, thrust, &control.thrust)
@@ -256,7 +256,7 @@ LOG_ADD(LOG_FLOAT, z, &sensorData.mag.z)
 LOG_GROUP_STOP(mag)
 
 LOG_GROUP_START(controller)
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
 LOG_ADD(LOG_FLOAT, ctr_thrust, &control.thrust)
 LOG_ADD(LOG_FLOAT, ctr_roll, &control.roll)
 LOG_ADD(LOG_FLOAT, ctr_pitch, &control.pitch)

@@ -133,7 +133,7 @@ typedef struct sensorData_s {
 
 typedef struct state_s {
   attitude_t attitude;      // deg (legacy CF2 body coordinate system, where pitch is inverted)
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger) 
   attitude_t attitudeRate;
 #endif
   quaternion_t attitudeQuaternion;
@@ -150,7 +150,7 @@ typedef struct state_s {
 } state_t;
 
 typedef struct control_s {
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
   float roll;
   float pitch;
   float yaw;

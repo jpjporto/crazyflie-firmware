@@ -28,7 +28,7 @@
 
 #include "stabilizer_types.h"
 
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger) && !defined(CONTROLLER_TYPE_lqr)
 void hinfControllerInit(void);
 void hinfController(control_t *control, setpoint_t *setpoint,
                                          const state_t *state,

@@ -181,7 +181,7 @@ bool getExtPosition(state_t *state)
     uint8_t seqDiff0 = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq0 - prevSeqNum[0];
     if(seqDiff0 != 0) {
       prevSeqNum[0] = crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].seq0;
-#if defined(CONTROLLER_TYPE_hinfdec) && CFNUM >= 2
+#if CFNUM >= 2
       state->poscf1.x = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].x0 / 8000.0f;
       state->poscf1.y = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].y0 / 8000.0f;
       state->poscf1.z = (float)crtpBroadExtPosCache.targetVal[crtpBroadExtPosCache.activeSide].z0 / 8000.0f;

@@ -396,7 +396,7 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
 #endif
 
   // Average the thrust command from the last timestep, generated externally by the controller
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
   thrustAccumulator += control->thrust * 30.2114811f; // thrust is in N, we need ms^-2 (divide by mass of cf, 32.4675331 = 1/(0.0308) = 1/mass)
 #else
   thrustAccumulator += control->thrust * CONTROL_TO_ACC; // thrust is in grams, we need ms^-2
@@ -1276,7 +1276,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
   // Save attitude, adjusted for the legacy CF2 body coordinate system
   state->attitude = (attitude_t){
       .timestamp = tick,
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
       .roll = roll,
       .pitch = pitch,
       .yaw = yaw
@@ -1287,7 +1287,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
 #endif
   };
   
-#if defined(CONTROLLER_TYPE_hinf) || defined(CONTROLLER_TYPE_lqr) || defined(CONTROLLER_TYPE_hinfdec)
+#if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
   state->attitudeRate = (attitude_t){
       .timestamp = tick,
       .roll = sensors->gyro.x * DEG_TO_RAD,
