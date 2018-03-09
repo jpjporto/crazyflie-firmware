@@ -88,7 +88,7 @@
 // Number of samples used in variance calculation. Changing this effects the threshold
 #define SENSORS_NBR_OF_BIAS_SAMPLES     1024
 // Variance threshold to take zero bias for gyro
-#define GYRO_VARIANCE_BASE          5000 * (4-SENSORS_GYRO_FS_CFG)
+#define GYRO_VARIANCE_BASE          5000 * (4-SENSORS_GYRO_FS_CFG) * (4-SENSORS_GYRO_FS_CFG)
 #define GYRO_VARIANCE_THRESHOLD_X   (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Y   (GYRO_VARIANCE_BASE)
 #define GYRO_VARIANCE_THRESHOLD_Z   (GYRO_VARIANCE_BASE)
