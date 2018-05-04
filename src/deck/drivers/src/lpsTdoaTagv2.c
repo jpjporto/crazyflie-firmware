@@ -157,13 +157,13 @@ static bool calcDistanceDiff(float* tdoaDistDiff, const uint8_t previousAnchor, 
   const uint32_t txAn_in_cl_An = packet->timestamps[anchor];
   const uint32_t rxAr_by_T_in_cl_T = arrivals[previousAnchor].full;
 
-  const int64_t delta_txAr_to_txAn_in_cl_An = (tof_Ar_to_An_in_cl_An + (txAn_in_cl_An - rxAr_by_An_in_cl_An));
+  int32_t delta_txAr_to_txAn_in_cl_An = (tof_Ar_to_An_in_cl_An + (txAn_in_cl_An - rxAr_by_An_in_cl_An));
   uint32_t tmp1 = rxAn_by_T_in_cl_T - rxAr_by_T_in_cl_T;
-  int64_t tmp2 = (double)tmp1 * clockCorrection;
-  const int32_t timeDiffOfArrival_in_cl_An =  tmp2 - delta_txAr_to_txAn_in_cl_An;
+  int32_t tmp2 = (double)tmp1 * clockCorrection;
+  int32_t timeDiffOfArrival_in_cl_An =  tmp2 - delta_txAr_to_txAn_in_cl_An;
 
   //*tdoaDistDiff = SPEED_OF_LIGHT * timeDiffOfArrival_in_cl_An / LOCODECK_TS_FREQ;
-  *tdoaDistDiff = (float) timeDiffOfArrival_in_cl_An * 0.004691763978616f;
+  *tdoaDistDiff = (float)timeDiffOfArrival_in_cl_An * 0.004691763978616f;
 
   return true;
 }

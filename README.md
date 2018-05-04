@@ -13,6 +13,7 @@ This project contains the source code for the Crazyflie 2.0 firmware.
 * Acc max range is [-4g,4g], and the gyro max range is [-1000, 1000] deg/s
 * Few changes to the tdoa algorithm
 
+I've made a lot of changes to improve code speed and size, so the code is probably very hard to follow compared to the official firmware. However, if you are interested in the code, you can always message me.
 
 ### Crazyflie 1.0 support
 
