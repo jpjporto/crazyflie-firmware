@@ -32,6 +32,11 @@ CONTROLLER         ?= pid
 POWER_DISTRIBUTION ?= stock
 SENSORS            ?= cf2
 
+##### Custom Config options ######
+CFNUM              ?= 1
+
+CFLAGS += -DCFNUM=$(CFNUM)
+
 ######### Test activation ##########
 FATFS_DISKIO_TESTS  ?= 0	# Set to 1 to enable FatFS diskio function tests. Erases card.
 
@@ -40,7 +45,7 @@ OPENOCD_TARGET    ?= target/stm32f4x_stlink.cfg
 USE_FPU           ?= 1
 endif
 
-
+#CDLAGS += -mfp16-format=alternative -mfpu=neon-fp16
 ifeq ($(PLATFORM), CF2)
 # Now needed for SYSLINK
 CFLAGS += -DUSE_RADIOLINK_CRTP     # Set CRTP link to radio
@@ -169,8 +174,8 @@ PROJ_OBJ_CF2 += deck_spi.o
 PROJ_OBJ_CF2 += ledring12.o
 #PROJ_OBJ_CF2 += buzzdeck.o
 #PROJ_OBJ_CF2 += gtgps.o
-PROJ_OBJ_CF2 += cppmdeck.o
-PROJ_OBJ_CF2 += usddeck.o
+#PROJ_OBJ_CF2 += cppmdeck.o
+#PROJ_OBJ_CF2 += usddeck.o
 #PROJ_OBJ_CF2 += zranger.o
 PROJ_OBJ_CF2 += locodeck.o
 PROJ_OBJ_CF2 += lpsTwrTag.o
@@ -188,7 +193,7 @@ CFLAGS += -DLPS_TDMA_ENABLE
 endif
 
 #Deck tests
-PROJ_OBJ_CF2 += exptest.o
+#PROJ_OBJ_CF2 += exptest.o
 #PROJ_OBJ_CF2 += bigquadtest.o
 
 

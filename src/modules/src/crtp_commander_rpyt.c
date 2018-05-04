@@ -34,6 +34,7 @@
 #include "FreeRTOS.h"
 #include "num.h"
 #include "task.h"
+#include "log.h"
 
 #define MIN_THRUST  1000
 #define MAX_THRUST  60000
@@ -62,6 +63,9 @@ struct CommanderCrtpBroadcast
   int16_t xs2;
   int16_t ys2;
   int16_t zs2;
+  int16_t xs3;
+  int16_t ys3;
+  int16_t zs3;
 } __attribute__((packed));
 
 /**
@@ -229,75 +233,95 @@ void crtpCommanderRpytDecodeSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
 static point_t prevSetpoint1;
 #if CFNUM >=2
 static point_t prevSetpoint2;
-#if CFNUM ==3
+#if CFNUM >=3
 static point_t prevSetpoint3;
+#if CFNUM == 4
+static point_t prevSetpoint4;
 #endif
 #endif
 #endif
-static uint8_t prevSeqNum;
+#endif
+static uint8_t prevSeqNum = 0xFF;
+static uint32_t numTotal = 0, numValid = 0, numLost = 0;
 
 typedef struct
 {
-  struct CommanderCrtpBroadcast targetVal[2];
-  bool activeSide;
+  struct CommanderCrtpBroadcast targetVal;
+  //bool activeSide;
   uint32_t timestamp; // FreeRTOS ticks
 } BroadSetCache;
 static BroadSetCache crtpBroadSetpointCache;
 
 void broadcastSetpointHandler(CRTPPacket* pk)
 {
-  crtpBroadSetpointCache.targetVal[!crtpBroadSetpointCache.activeSide] = *((struct CommanderCrtpBroadcast*)pk->data);
-  crtpBroadSetpointCache.activeSide = !crtpBroadSetpointCache.activeSide;
+  crtpBroadSetpointCache.targetVal = *((struct CommanderCrtpBroadcast*)pk->data);
+  //crtpBroadSetpointCache.activeSide = !crtpBroadSetpointCache.activeSide;
   crtpBroadSetpointCache.timestamp = xTaskGetTickCount();
+  numTotal++;
 }
 
 //void crtpDecodeBroadcastSetpoint(setpoint_t *setpoint, CRTPPacket *pk)
 void getSetpoint(setpoint_t *setpoint)
 {
   if ((xTaskGetTickCount() - crtpBroadSetpointCache.timestamp) < M2T(5)) {
-    struct CommanderCrtpBroadcast *values = &crtpBroadSetpointCache.targetVal[!crtpBroadSetpointCache.activeSide];
+    struct CommanderCrtpBroadcast *values = &crtpBroadSetpointCache.targetVal;
     uint8_t seqDiff = values->seq - prevSeqNum;
     if(seqDiff != 0) {
       prevSeqNum = values->seq;
       setpoint->sys_mode = values->mode;
-      setpoint->poscf1.x = (float)values->xs0 / 8000.0f;
-      setpoint->poscf1.y = (float)values->ys0 / 8000.0f;
-      setpoint->poscf1.z = (float)values->zs0 / 8000.0f;
+      setpoint->poscf1.x = (float)values->xs0 * 0.000125f; // Scale factor, same as dividing by 8000
+      setpoint->poscf1.y = (float)values->ys0 * 0.000125f;
+      setpoint->poscf1.z = (float)values->zs0 * 0.000125f;
   #if CFNUM >= 2
-      setpoint->poscf2.x = (float)values->xs1 / 8000.0f;
-      setpoint->poscf2.y = (float)values->ys1 / 8000.0f;
-      setpoint->poscf2.z = (float)values->zs1 / 8000.0f;
-    #if CFNUM == 3
-      setpoint->poscf3.x = (float)values->xs2 / 8000.0f;
-      setpoint->poscf3.y = (float)values->ys2 / 8000.0f;
-      setpoint->poscf3.z = (float)values->zs2 / 8000.0f;
+      setpoint->poscf2.x = (float)values->xs1 * 0.000125f; // Scale factor, same as dividing by 8000
+      setpoint->poscf2.y = (float)values->ys1 * 0.000125f;
+      setpoint->poscf2.z = (float)values->zs1 * 0.000125f;
+    #if CFNUM >= 3
+      setpoint->poscf3.x = (float)values->xs2 * 0.000125f; // Scale factor, same as dividing by 8000
+      setpoint->poscf3.y = (float)values->ys2 * 0.000125f;
+      setpoint->poscf3.z = (float)values->zs2 * 0.000125f;
+      #if CFNUM == 4
+      setpoint->poscf4.x = (float)values->xs3 * 0.000125f; // Scale factor, same as dividing by 8000
+      setpoint->poscf4.y = (float)values->ys3 * 0.000125f;
+      setpoint->poscf4.z = (float)values->zs3 * 0.000125f;
+      #endif
     #endif
   #endif
 
 #ifdef SETPOINT_VEL
-      setpoint->velcf1.x = (setpoint->poscf1.x - prevSetpoint1.x) * 500 * seqDiff; // This line assumes we are getting a packet every 2ms.
-      setpoint->velcf1.y = (setpoint->poscf1.y - prevSetpoint1.y) * 500 * seqDiff; // This assumption gives a more conservative approximation of the derivative,
-      setpoint->velcf1.z = (setpoint->poscf1.z - prevSetpoint1.z) * 500 * seqDiff; // but it might be the best option given that xTaskGetTickCount() only has 1ms resolution.
+      setpoint->velcf1.x = (setpoint->poscf1.x - prevSetpoint1.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
+      setpoint->velcf1.y = (setpoint->poscf1.y - prevSetpoint1.y) * 500 * seqDiff;
+      setpoint->velcf1.z = (setpoint->poscf1.z - prevSetpoint1.z) * 500 * seqDiff;
       prevSetpoint1.x = setpoint->poscf1.x;
       prevSetpoint1.y = setpoint->poscf1.y;
       prevSetpoint1.z = setpoint->poscf1.z;
-  #if CFNUM >=2
-      setpoint->velcf2.x = (setpoint->poscf2.x - prevSetpoint2.x) * 500 * seqDiff; // This line assumes we are getting a packet every 2ms.
-      setpoint->velcf2.y = (setpoint->poscf2.y - prevSetpoint2.y) * 500 * seqDiff; // This assumption gives a more conservative approximation of the derivative,
-      setpoint->velcf2.z = (setpoint->poscf2.z - prevSetpoint2.z) * 500 * seqDiff; // but it might be the best option given that xTaskGetTickCount() only has 1ms resolution.
+  #if CFNUM >= 2
+      setpoint->velcf2.x = (setpoint->poscf2.x - prevSetpoint2.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
+      setpoint->velcf2.y = (setpoint->poscf2.y - prevSetpoint2.y) * 500 * seqDiff;
+      //setpoint->velcf2.z = (setpoint->poscf2.z - prevSetpoint2.z) * 500 * seqDiff; // Realistically, we'll always keep them at same height
       prevSetpoint2.x = setpoint->poscf2.x;
       prevSetpoint2.y = setpoint->poscf2.y;
-      prevSetpoint2.z = setpoint->poscf2.z;
-    #if CFNUM ==3
-      setpoint->velcf3.x = (setpoint->poscf3.x - prevSetpoint3.x) * 500 * seqDiff; // This line assumes we are getting a packet every 2ms.
-      setpoint->velcf3.y = (setpoint->poscf3.y - prevSetpoint3.y) * 500 * seqDiff; // This assumption gives a more conservative approximation of the derivative,
-      setpoint->velcf3.z = (setpoint->poscf3.z - prevSetpoint3.z) * 500 * seqDiff; // but it might be the best option given that xTaskGetTickCount() only has 1ms resolution.
+      //prevSetpoint2.z = setpoint->poscf2.z;
+    #if CFNUM >= 3
+      setpoint->velcf3.x = (setpoint->poscf3.x - prevSetpoint3.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
+      setpoint->velcf3.y = (setpoint->poscf3.y - prevSetpoint3.y) * 500 * seqDiff;
+      //setpoint->velcf3.z = (setpoint->poscf3.z - prevSetpoint3.z) * 500 * seqDiff;
       prevSetpoint3.x = setpoint->poscf3.x;
       prevSetpoint3.y = setpoint->poscf3.y;
-      prevSetpoint3.z = setpoint->poscf3.z;
+      //prevSetpoint3.z = setpoint->poscf3.z;
+      #if CFNUM == 4
+      setpoint->velcf4.x = (setpoint->poscf4.x - prevSetpoint4.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
+      setpoint->velcf4.y = (setpoint->poscf4.y - prevSetpoint4.y) * 500 * seqDiff;
+      //setpoint->velcf4.z = (setpoint->poscf4.z - prevSetpoint4.z) * 500 * seqDiff;
+      prevSetpoint4.x = setpoint->poscf4.x;
+      prevSetpoint4.y = setpoint->poscf4.y;
+      //prevSetpoint4.z = setpoint->poscf4.z;
+      #endif
     #endif
   #endif
 #endif
+      numValid++;
+      if (seqDiff > 1) numLost++;
     }
   }
 }
@@ -313,3 +337,9 @@ PARAM_ADD(PARAM_UINT8, stabModeRoll, &stabilizationModeRoll)
 PARAM_ADD(PARAM_UINT8, stabModePitch, &stabilizationModePitch)
 PARAM_ADD(PARAM_UINT8, stabModeYaw, &stabilizationModeYaw)
 PARAM_GROUP_STOP(flightmode)
+
+LOG_GROUP_START(crtpSetpoint)
+LOG_ADD(LOG_UINT32, numTotal, &numTotal)
+LOG_ADD(LOG_UINT32, numValid, &numValid)
+LOG_ADD(LOG_UINT32, numLost, &numLost)
+LOG_GROUP_STOP(crtpSetpoint)

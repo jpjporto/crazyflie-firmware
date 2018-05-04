@@ -143,9 +143,11 @@ typedef struct state_s {
 
   point_t poscf1;
   point_t poscf2;
+  point_t poscf3;
 #ifdef SETPOINT_VEL
   velocity_t velcf1;
   velocity_t velcf2;
+  velocity_t velcf3;
 #endif
 } state_t;
 
@@ -185,10 +187,12 @@ typedef struct setpoint_s {
   point_t poscf1;
   point_t poscf2;
   point_t poscf3;
+  point_t poscf4;
 
   velocity_t velcf1;
   velocity_t velcf2;
   velocity_t velcf3;
+  velocity_t velcf4;
   
   uint8_t sys_mode;
 

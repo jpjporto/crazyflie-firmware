@@ -107,6 +107,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
  * As well as by the following internal functions and datatypes
  */
 
+/*
 // Distance-to-point measurements
 static xQueueHandle distDataQueue;
 #define DIST_QUEUE_LENGTH (10)
@@ -116,6 +117,7 @@ static void stateEstimatorUpdateWithDistance(distanceMeasurement_t *dist);
 static inline bool stateEstimatorHasDistanceMeasurement(distanceMeasurement_t *dist) {
   return (pdTRUE == xQueueReceive(distDataQueue, dist, 0));
 }
+*/
 
 // Direct measurements of Crazyflie position
 static xQueueHandle posDataQueue;
@@ -137,7 +139,7 @@ static inline bool stateEstimatorHasTDOAPacket(tdoaMeasurement_t *uwb) {
   return (pdTRUE == xQueueReceive(tdoaDataQueue, uwb, 0));
 }
 
-
+/*
 // Measurements of flow (dnx, dny)
 static xQueueHandle flowDataQueue;
 #define FLOW_QUEUE_LENGTH (10)
@@ -157,6 +159,7 @@ static void stateEstimatorUpdateWithTof(tofMeasurement_t *tof);
 static inline bool stateEstimatorHasTOFPacket(tofMeasurement_t *tof) {
   return (pdTRUE == xQueueReceive(tofDataQueue, tof, 0));
 }
+*/
 
 #ifdef KALMAN_USE_MAG_UPDATE
 static void stateEstimatorUpdateWithMagnetometer(float heading);
@@ -211,23 +214,23 @@ static float magLimits[6] = {1.2389381f, 0.4079796f, 1.2224389f, 0.4739763f, 0.5
 #define MAX_VELOCITY (10) //meters per second
 
 // Initial variances, uncertain of position, but know we're stationary and roughly flat
-static const float stdDevInitialPosition_xy = 100;
-static const float stdDevInitialPosition_z = 1;
-static const float stdDevInitialVelocity = 0.01;
-static const float stdDevInitialAttitude_rollpitch = 0.01;
-static const float stdDevInitialAttitude_yaw = 0.01;
+static const float stdDevInitialPosition_xy = 100.0f;
+static const float stdDevInitialPosition_z = 1.0f;
+static const float stdDevInitialVelocity = 0.01f;
+static const float stdDevInitialAttitude_rollpitch = 0.01f;
+static const float stdDevInitialAttitude_yaw = 0.01f;
 
 static float procNoiseAcc_xy = 0.5f;
 static float procNoiseAcc_z = 1.0f;
-static float procNoiseVel = 0;
-static float procNoisePos = 0;
-static float procNoiseAtt = 0;
+static float procNoiseVel = 0.0f;
+static float procNoisePos = 0.0f;
+static float procNoiseAtt = 0.0f;
 static float measNoiseBaro = 2.0f; // meters
 static float measNoiseGyro_rollpitch = 0.1f; // radians per second
 static float measNoiseGyro_yaw = 0.1f; // radians per second
 
 // We track a TDOA skew as part of the Kalman filter
-static const float stdDevInitialSkew = 0.1;
+static const float stdDevInitialSkew = 0.1f;
 static float procNoiseSkew = 10e-6f; // seconds per second^2 (is multiplied by dt to give skew noise)
 
 /**
@@ -253,10 +256,10 @@ static float S[STATE_DIM];
 // The quad's attitude as a quaternion (w,x,y,z)
 // We store as a quaternion to allow easy normalization (in comparison to a rotation matrix),
 // while also being robust against singularities (in comparison to euler angles)
-static float q[4] = {1,0,0,0};
+static float q[4] = {1.0f,0.0f,0.0f,0.0f};
 
 // The quad's attitude as a rotation matrix (used by the prediction, updated by the finalization)
-static float R[3][3] = {{1,0,0},{0,1,0},{0,0,1}};
+static float R[3][3] = {{1.0f,0.0f,0.0f},{0.0f,1.0f,0.0f},{0.0f,0.0f,1.0f}};
 
 // The covariance matrix
 static float P[STATE_DIM][STATE_DIM];
@@ -270,16 +273,16 @@ static arm_matrix_instance_f32 Pm = {STATE_DIM, STATE_DIM, (float *)P};
 static bool isInit = false;
 static bool resetEstimation = true;
 static int32_t lastPrediction;
-static int32_t lastBaroUpdate;
+//static int32_t lastBaroUpdate;
 static int32_t lastPNUpdate;
 static Axis3f accAccumulator;
 static float thrustAccumulator;
 static Axis3f gyroAccumulator;
-static baro_t baroAccumulator;
+//static baro_t baroAccumulator;
 static uint32_t accAccumulatorCount;
 static uint32_t thrustAccumulatorCount;
 static uint32_t gyroAccumulatorCount;
-static uint32_t baroAccumulatorCount;
+//static uint32_t baroAccumulatorCount;
 static bool quadIsFlying = false;
 static int32_t lastTDOAUpdate;
 static float stateSkew;
@@ -446,13 +449,12 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
   lastPNUpdate = osTick;
 
 
-
+#ifdef KALMAN_USE_BARO_UPDATE
   /**
    * Update the state estimate with the barometer measurements
    */
   // Accumulate the barometer measurements
   if (sensorsReadBaro(&sensors->baro)) {
-#ifdef KALMAN_USE_BARO_UPDATE
     baroAccumulator.asl += sensors->baro.asl;
     baroAccumulatorCount++;
   }
@@ -468,27 +470,27 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
     baroAccumulatorCount = 0;
     lastBaroUpdate = osTick;
     doneUpdate = true;
-#endif
   }
+#endif
 
   /**
    * Sensor measurements can come in sporadically and faster than the stabilizer loop frequency,
    * we therefore consume all measurements since the last loop, rather than accumulating
    */
-
+/*
   tofMeasurement_t tof;
   while (stateEstimatorHasTOFPacket(&tof))
   {
     stateEstimatorUpdateWithTof(&tof);
     doneUpdate = true;
-  }
-
+  }*/
+/*
   distanceMeasurement_t dist;
   while (stateEstimatorHasDistanceMeasurement(&dist))
   {
     stateEstimatorUpdateWithDistance(&dist);
     doneUpdate = true;
-  }
+  }*/
 
   positionMeasurement_t pos;
   while (stateEstimatorHasPositionMeasurement(&pos))
@@ -503,13 +505,13 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
     stateEstimatorUpdateWithTDOA(&tdoa);
     doneUpdate = true;
   }
-
+/*
   flowMeasurement_t flow;
   while (stateEstimatorHasFlowPacket(&flow))
   {
     stateEstimatorUpdateWithFlow(&flow, sensors);
     doneUpdate = true;
-  }
+  }*/
 
   /**
    * If an update has been made, the state is finalized:
@@ -852,9 +854,43 @@ static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error,
   mat_mult(&Pm, &HTm, &PHTm); // PH'
   float R = stdMeasNoise*stdMeasNoise;
   float HPHR = R; // HPH' + R
-  for (int i=0; i<STATE_DIM; i++) { // Add the element of HPH' to the above
-    HPHR += Hm->pData[i]*PHTd[i]; // this obviously only works if the update is scalar (as in this function)
-  }
+  //for (int i=0; i<STATE_DIM; i++) { // Add the element of HPH' to the above
+  //  HPHR += Hm->pData[i]*PHTd[i]; // this obviously only works if the update is scalar (as in this function)
+  //}
+  
+  float in1, in2, in3, in4;
+  in3 = PHTd[0];
+  in1 = Hm->pData[0];
+  in2 = Hm->pData[1];
+  HPHR += in1 * in3;
+  in4 = PHTd[1];
+  HPHR += in2 * in4;
+  
+  in3 = PHTd[2];
+  in1 = Hm->pData[2];
+  in2 = Hm->pData[3];
+  HPHR += in1 * in3;
+  in4 = PHTd[3];
+  HPHR += in2 * in4; // 4 states
+  
+  in3 = PHTd[4];
+  in1 = Hm->pData[4];
+  in2 = Hm->pData[5];
+  HPHR += in1 * in3;
+  in4 = PHTd[5];
+  HPHR += in2 * in4;
+  
+  in3 = PHTd[6];
+  in1 = Hm->pData[6];
+  in2 = Hm->pData[7];
+  HPHR += in1 * in3;
+  in4 = PHTd[7];
+  HPHR += in2 * in4; // 8 states
+  
+  in3 = PHTd[8];
+  in1 = Hm->pData[8];
+  HPHR += in1 * in3; // 9 states
+  
   configASSERT(!isnan(HPHR));
 
   // ====== MEASUREMENT UPDATE ======
@@ -952,6 +988,7 @@ static void stateEstimatorUpdateWithPosition(positionMeasurement_t *xyz)
   }
 }
 
+/*
 static void stateEstimatorUpdateWithDistance(distanceMeasurement_t *d)
 {
   // a measurement of distance to point (x, y, z)
@@ -972,6 +1009,7 @@ static void stateEstimatorUpdateWithDistance(distanceMeasurement_t *d)
 
   stateEstimatorScalarUpdate(&H, measuredDistance-predictedDistance, d->stdDev);
 }
+*/
 
 static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
 {
@@ -998,19 +1036,23 @@ static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
 
   if (tdoaCount >= 100)
   {
-    float h[STATE_DIM] = {0};
-    arm_matrix_instance_f32 H = {1, STATE_DIM, h};
+    if ((tdoaCount > 1000) && (fabsf(error) < 1.0f))
+    {
+      float h[STATE_DIM] = {0};
+      arm_matrix_instance_f32 H = {1, STATE_DIM, h};
 
-    h[STATE_X] = ((x - x1) / d1 - (x - x0) / d0);
-    h[STATE_Y] = ((y - y1) / d1 - (y - y0) / d0);
-    h[STATE_Z] = ((z - z1) / d1 - (z - z0) / d0);
+      h[STATE_X] = ((x - x1) / d1 - (x - x0) / d0);
+      h[STATE_Y] = ((y - y1) / d1 - (y - y0) / d0);
+      h[STATE_Z] = ((z - z1) / d1 - (z - z0) / d0);
 
-    stateEstimatorScalarUpdate(&H, error, tdoa->stdDev);
+      stateEstimatorScalarUpdate(&H, error, tdoa->stdDev);
+    }
   }
 
   tdoaCount++;
 }
 
+/*
 // TODO remove the temporary test variables (used for logging)
 static float omegax_b;
 static float omegay_b;
@@ -1087,7 +1129,9 @@ static void stateEstimatorUpdateWithFlow(flowMeasurement_t *flow, sensorData_t *
   // Second update
   stateEstimatorScalarUpdate(&Hy, measuredNY-predictedNY, flow->stdDevY);
 }
+*/
 
+/*
 static void stateEstimatorUpdateWithTof(tofMeasurement_t *tof)
 {
   // Updates the filter with a measured distance in the zb direction using the
@@ -1114,6 +1158,7 @@ static void stateEstimatorUpdateWithTof(tofMeasurement_t *tof)
     stateEstimatorScalarUpdate(&H, measuredDistance-predictedDistance, tof->stdDev);
   }
 }
+*/
 
 static void stateEstimatorFinalize(sensorData_t *sensors, uint32_t tick)
 {
@@ -1239,6 +1284,12 @@ static void stateEstimatorFinalize(sensorData_t *sensors, uint32_t tick)
   stateEstimatorAssertNotNaN();
 }
 
+static inline float fast_atan2(float y, float x)
+{
+    float z = y/x;
+    float zabs = fabsf(z);
+    return 0.7853982f*z - z*(zabs - 1)*(0.2443461f + 0.0668461f*zabs);
+}
 
 static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors, uint32_t tick)
 {
@@ -1258,6 +1309,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
       .z = R[2][0]*S[STATE_PX] + R[2][1]*S[STATE_PY] + R[2][2]*S[STATE_PZ]
   };
 
+#if defined(CONTROLLER_TYPE_pid) || defined(CONTROLLER_TYPE_mellinger)
   // Accelerometer measurements are in the body frame and need to be rotated to world frame.
   // Furthermore, the legacy code requires acc.z to be acceleration without gravity.
   // Finally, note that these accelerations are in Gs, and not in m/s^2, hence - 1 for removing gravity
@@ -1267,11 +1319,12 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
       .y = R[1][0]*sensors->acc.x + R[1][1]*sensors->acc.y + R[1][2]*sensors->acc.z,
       .z = R[2][0]*sensors->acc.x + R[2][1]*sensors->acc.y + R[2][2]*sensors->acc.z - 1
   };
+#endif
 
   // convert the new attitude into Euler YPR
-  float yaw = atan2f(2*(q[1]*q[2]+q[0]*q[3]) , q[0]*q[0] + q[1]*q[1] - q[2]*q[2] - q[3]*q[3]);
+  float yaw = fast_atan2(2*(q[1]*q[2]+q[0]*q[3]) , q[0]*q[0] + q[1]*q[1] - q[2]*q[2] - q[3]*q[3]);
   float pitch = asinf(-2*(q[1]*q[3] - q[0]*q[2]));
-  float roll = atan2f(2*(q[2]*q[3]+q[0]*q[1]) , q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]);
+  float roll = fast_atan2(2*(q[2]*q[3]+q[0]*q[1]) , q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]);
 
   // Save attitude, adjusted for the legacy CF2 body coordinate system
   state->attitude = (attitude_t){
@@ -1296,6 +1349,7 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
   };
 #endif
 
+#if defined(CONTROLLER_TYPE_pid) || defined(CONTROLLER_TYPE_mellinger)
   // Save quaternion, hopefully one day this could be used in a better controller.
   // Note that this is not adjusted for the legacy coordinate system
   state->attitudeQuaternion = (quaternion_t){
@@ -1305,41 +1359,42 @@ static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors
       .y = q[2],
       .z = q[3]
   };
+#endif
 }
 
 
 void estimatorKalmanInit(void) {
   if (!isInit)
   {
-    distDataQueue = xQueueCreate(DIST_QUEUE_LENGTH, sizeof(distanceMeasurement_t));
+    //distDataQueue = xQueueCreate(DIST_QUEUE_LENGTH, sizeof(distanceMeasurement_t));
     posDataQueue = xQueueCreate(POS_QUEUE_LENGTH, sizeof(positionMeasurement_t));
     tdoaDataQueue = xQueueCreate(UWB_QUEUE_LENGTH, sizeof(tdoaMeasurement_t));
-    flowDataQueue = xQueueCreate(FLOW_QUEUE_LENGTH, sizeof(flowMeasurement_t));
-    tofDataQueue = xQueueCreate(TOF_QUEUE_LENGTH, sizeof(tofMeasurement_t));
+    //flowDataQueue = xQueueCreate(FLOW_QUEUE_LENGTH, sizeof(flowMeasurement_t));
+    //tofDataQueue = xQueueCreate(TOF_QUEUE_LENGTH, sizeof(tofMeasurement_t));
   }
   else
   {
-    xQueueReset(distDataQueue);
+    //xQueueReset(distDataQueue);
     xQueueReset(posDataQueue);
     xQueueReset(tdoaDataQueue);
-    xQueueReset(flowDataQueue);
-    xQueueReset(tofDataQueue);
+    //xQueueReset(flowDataQueue);
+    //xQueueReset(tofDataQueue);
   }
 
   lastPrediction = xTaskGetTickCount();
-  lastBaroUpdate = xTaskGetTickCount();
+  //lastBaroUpdate = xTaskGetTickCount();
   lastTDOAUpdate = xTaskGetTickCount();
   lastPNUpdate = xTaskGetTickCount();
 
   accAccumulator = (Axis3f){.axis={0}};
   gyroAccumulator = (Axis3f){.axis={0}};
   thrustAccumulator = 0;
-  baroAccumulator.asl = 0;
+  //baroAccumulator.asl = 0;
 
   accAccumulatorCount = 0;
   gyroAccumulatorCount = 0;
   thrustAccumulatorCount = 0;
-  baroAccumulatorCount = 0;
+  //baroAccumulatorCount = 0;
 
   // Reset all matrices to 0 (like uppon system reset)
   memset(q, 0, sizeof(q));
@@ -1420,6 +1475,7 @@ bool estimatorKalmanEnqueuePosition(positionMeasurement_t *pos)
   return stateEstimatorEnqueueExternalMeasurement(posDataQueue, (void *)pos);
 }
 
+/*
 bool estimatorKalmanEnqueueDistance(distanceMeasurement_t *dist)
 {
   ASSERT(isInit);
@@ -1439,6 +1495,7 @@ bool estimatorKalmanEnqueueTOF(tofMeasurement_t *tof)
   ASSERT(isInit);
   return stateEstimatorEnqueueExternalMeasurement(tofDataQueue, (void *)tof);
 }
+*/
 
 bool estimatorKalmanTest(void)
 {
@@ -1466,19 +1523,22 @@ void estimatorKalmanGetEstimatedPos(point_t* pos) {
 }
 
 // Temporary development groups
+/*
 LOG_GROUP_START(kalman_states)
   LOG_ADD(LOG_FLOAT, ox, &S[STATE_X])
   LOG_ADD(LOG_FLOAT, oy, &S[STATE_Y])
   LOG_ADD(LOG_FLOAT, vx, &S[STATE_PX])
   LOG_ADD(LOG_FLOAT, vy, &S[STATE_PY])
-LOG_GROUP_STOP(kalman_states)
+LOG_GROUP_STOP(kalman_states)*/
 
+/*
 LOG_GROUP_START(kalman_pred)
   LOG_ADD(LOG_FLOAT, predNX, &predictedNX)
   LOG_ADD(LOG_FLOAT, predNY, &predictedNY)
   LOG_ADD(LOG_FLOAT, measNX, &measuredNX)
   LOG_ADD(LOG_FLOAT, measNY, &measuredNY)
 LOG_GROUP_STOP(kalman_pred)
+*/
 
 // Stock log groups
 LOG_GROUP_START(kalman)

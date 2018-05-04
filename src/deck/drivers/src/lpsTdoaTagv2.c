@@ -30,6 +30,7 @@
 #include "task.h"
 
 #include "log.h"
+#include "num.h"
 #include "lpsTdoaTagv2.h"
 
 #include "stabilizer_types.h"
@@ -64,11 +65,11 @@ static uint16_t statsRecv[LOCODECK_NR_OF_ANCHORS];
 static bool rangingOk;
 static uint32_t anchorStatusTimeout[LOCODECK_NR_OF_ANCHORS];
 
-static uint64_t truncateToLocalTimeStamp(uint64_t fullTimeStamp) {
-  return fullTimeStamp & 0x00FFFFFFFFul;
-}
+//static uint64_t truncateToLocalTimeStamp(uint64_t fullTimeStamp) {
+//  return fullTimeStamp & 0x00FFFFFFFFul;
+//}
 
-static uint64_t truncateToAnchorTimeStamp(uint64_t fullTimeStamp) {
+static inline uint64_t truncateToAnchorTimeStamp(uint64_t fullTimeStamp) {
   return fullTimeStamp & 0x00FFFFFFFFul;
 }
 
@@ -87,9 +88,9 @@ static void enqueueTDOA(uint8_t anchor1, uint8_t anchor2, double distanceDiff) {
 // The default receive time in the anchors for messages from other anchors is 0
 // and is overwritten with the actual receive time when a packet arrives.
 // That is, if no message was received the rx time will be 0.
-static bool isValidTimeStamp(const int64_t anchorRxTime) {
-  return anchorRxTime != 0;
-}
+//static bool isValidTimeStamp(const int64_t anchorRxTime) {
+//  return anchorRxTime != 0;
+//}
 
 static bool isSeqNrConsecutive(uint8_t prevSeqNr, uint8_t currentSeqNr) {
   return (currentSeqNr == ((prevSeqNr + 1) & 0xFF));
@@ -111,14 +112,23 @@ static bool calcClockCorrection(double* clockCorrection, const uint8_t anchor, c
     return false;
   }
 
-  const int64_t previous_txAn_in_cl_An = rxPacketBuffer[anchor].timestamps[anchor];
+/*  const int64_t previous_txAn_in_cl_An = rxPacketBuffer[anchor].timestamps[anchor];
   const int64_t rxAn_by_T_in_cl_T = arrival->full;
   const int64_t txAn_in_cl_An = packet->timestamps[anchor];
   const int64_t previous_rxAn_by_T_in_cl_T = arrivals[anchor].full;
   const double frameTime_in_cl_An = truncateToAnchorTimeStamp(txAn_in_cl_An - previous_txAn_in_cl_An);
   const double frameTime_in_T = truncateToLocalTimeStamp(rxAn_by_T_in_cl_T - previous_rxAn_by_T_in_cl_T);
 
-  *clockCorrection = frameTime_in_cl_An / frameTime_in_T;
+  *clockCorrection = frameTime_in_cl_An / frameTime_in_T;*/
+  
+  const uint32_t previous_txAn_in_cl_An = rxPacketBuffer[anchor].timestamps[anchor];
+  const uint32_t rxAn_by_T_in_cl_T = arrival->full;
+  const uint32_t txAn_in_cl_An = packet->timestamps[anchor];
+  const uint32_t previous_rxAn_by_T_in_cl_T = arrivals[anchor].full;
+  uint32_t frameTime_in_cl_An = (txAn_in_cl_An - previous_txAn_in_cl_An);
+  uint32_t frameTime_in_T = (rxAn_by_T_in_cl_T - previous_rxAn_by_T_in_cl_T);
+
+  *clockCorrection = (double)frameTime_in_cl_An / (double)frameTime_in_T;
   return true;
 }
 
@@ -130,26 +140,30 @@ static bool calcDistanceDiff(float* tdoaDistDiff, const uint8_t previousAnchor, 
     return false;
   }
   
-  const int64_t rxAn_by_T_in_cl_T  = arrival->full;
-  const int64_t rxAr_by_An_in_cl_An = packet->timestamps[previousAnchor];
-  const int64_t tof_Ar_to_An_in_cl_An = packet->distances[previousAnchor];
+  //Can probably change most of these to uint32_t
+  const uint32_t rxAr_by_An_in_cl_An = packet->timestamps[previousAnchor];
+  const uint32_t tof_Ar_to_An_in_cl_An = packet->distances[previousAnchor];
   const double clockCorrection = clockCorrection_T_To_A[anchor];
 
-  const bool isAnchorDistanceOk = isValidTimeStamp(tof_Ar_to_An_in_cl_An);
-  const bool isRxTimeInTagOk = isValidTimeStamp(rxAr_by_An_in_cl_An);
+  const bool isAnchorDistanceOk = (tof_Ar_to_An_in_cl_An != 0);
+  const bool isRxTimeInTagOk = (rxAr_by_An_in_cl_An != 0); // Same as isValidTimeStamp() fcn
   const bool isClockCorrectionOk = (clockCorrection != 0.0);
 
   if (! (isAnchorDistanceOk && isRxTimeInTagOk && isClockCorrectionOk)) {
     return false;
   }
 
-  const int64_t txAn_in_cl_An = packet->timestamps[anchor];
-  const int64_t rxAr_by_T_in_cl_T = arrivals[previousAnchor].full;
+  const uint32_t rxAn_by_T_in_cl_T  = arrival->full;
+  const uint32_t txAn_in_cl_An = packet->timestamps[anchor];
+  const uint32_t rxAr_by_T_in_cl_T = arrivals[previousAnchor].full;
 
-  const int64_t delta_txAr_to_txAn_in_cl_An = (tof_Ar_to_An_in_cl_An + truncateToAnchorTimeStamp(txAn_in_cl_An - rxAr_by_An_in_cl_An));
-  const int64_t timeDiffOfArrival_in_cl_An =  truncateToAnchorTimeStamp(rxAn_by_T_in_cl_T - rxAr_by_T_in_cl_T) * clockCorrection - delta_txAr_to_txAn_in_cl_An;
+  const int64_t delta_txAr_to_txAn_in_cl_An = (tof_Ar_to_An_in_cl_An + (txAn_in_cl_An - rxAr_by_An_in_cl_An));
+  uint32_t tmp1 = rxAn_by_T_in_cl_T - rxAr_by_T_in_cl_T;
+  int64_t tmp2 = (double)tmp1 * clockCorrection;
+  const int32_t timeDiffOfArrival_in_cl_An =  tmp2 - delta_txAr_to_txAn_in_cl_An;
 
-  *tdoaDistDiff = SPEED_OF_LIGHT * timeDiffOfArrival_in_cl_An / LOCODECK_TS_FREQ;
+  //*tdoaDistDiff = SPEED_OF_LIGHT * timeDiffOfArrival_in_cl_An / LOCODECK_TS_FREQ;
+  *tdoaDistDiff = (float) timeDiffOfArrival_in_cl_An * 0.004691763978616f;
 
   return true;
 }
@@ -163,6 +177,10 @@ static void addToLog(const uint8_t anchor, const float tdoaDistDiff, const range
   }
 }
 
+/*static uint32_t dtArtAnan, temp1, temp2;
+static int32_t tdoaA; 
+static uint32_t rArAnAn, tofArAnAn, rAnTT, tAnAn, rArTT;
+static uint8_t pktID0, pktID1;*/
 // A note on variable names. They might seem a bit verbose but express quite a lot of information
 // We have three actors: Reference anchor (Ar), Anchor n (An) and the deck on the CF called Tag (T)
 // rxAr_by_An_in_cl_An should be interpreted as "The time when packet was received from the Reference Anchor by Anchor N expressed in the clock of Anchor N"
@@ -194,6 +212,20 @@ static void rxcallback(dwDevice_t *dev) {
       {
         enqueueTDOA(previousAnchor, anchor, tdoaDistDiff);
         addToLog(anchor, tdoaDistDiff, packet);
+        /*if((previousAnchor == 0) && (anchor == 1) && (tdoaDistDiff <= -1))
+        {
+            dtArtAnan = (packet->timestamps[anchor] - packet->timestamps[previousAnchor])+ packet->distances[previousAnchor];
+            temp1 = arrival.full - arrivals[previousAnchor].full;
+            temp2 = (double)temp1 * clockCorrection_T_To_A[anchor];
+            tdoaA = temp2 - dtArtAnan;
+            rArAnAn = packet->timestamps[previousAnchor];
+            tofArAnAn = packet->distances[previousAnchor];
+            rAnTT = arrival.full;
+            tAnAn = packet->timestamps[anchor];
+            rArTT = arrivals[previousAnchor].full;
+            pktID0 = rxPacketBuffer[previousAnchor].Idx;
+            pktID1 = packet->Idx;
+        }*/
 
         statsAcceptedPackets++;
       }
@@ -322,5 +354,18 @@ LOG_ADD(LOG_UINT16, recv5, &statsRecv[5])
 LOG_ADD(LOG_UINT16, recv6, &statsRecv[6])
 LOG_ADD(LOG_UINT16, recv7, &statsRecv[7])
 
+/*LOG_ADD(LOG_UINT32, dtArtAnan, &dtArtAnan)
+LOG_ADD(LOG_UINT32, temp1, &temp1)
+LOG_ADD(LOG_UINT32, temp2, &temp2)
+LOG_ADD(LOG_INT32, tdoaA, &tdoaA)
+
+LOG_ADD(LOG_UINT8, pktID0, &pktID0)
+LOG_ADD(LOG_UINT8, pktID1, &pktID1)
+
+LOG_ADD(LOG_UINT32, rArAnAn, &rArAnAn)
+LOG_ADD(LOG_UINT32, tofArAnAn, &tofArAnAn)
+LOG_ADD(LOG_UINT32, rAnTT, &rAnTT)
+LOG_ADD(LOG_UINT32, tAnAn, &tAnAn)
+LOG_ADD(LOG_UINT32, rArTT, &rArTT)*/
 
 LOG_GROUP_STOP(tdoa)

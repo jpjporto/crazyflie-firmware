@@ -38,6 +38,11 @@
 #define THRUST_TO_TORQUE_m   0.005964552f
 #define PWM_TO_THRUST_a      0.091492681f
 #define PWM_TO_THRUST_b      0.067673604f
+#define invCF_ARM_LENGTH     30.7437725f
+#define invTTT               1.6765718e+02f
+#define inv2PWM2TA           5.4649181f
+#define PWM_TO_THRUST_bSQRD  0.004579716678349f
+#define PWM_TO_THRUST_a4     0.365970724f
 
 #define hover_omega 15465.36f
 #define d2we        3.2330317e-05f
@@ -49,7 +54,7 @@
 #define MAX_TORQUE 0.008f
 
 static inline float arm_sqrt(float32_t in)
-{ float pOut = 0; arm_sqrt_f32(in, &pOut); return pOut; }
+{ float pOut; arm_sqrt_f32(in, &pOut); return pOut; }
 
 static bool motorSetEnable = false;
 
@@ -100,9 +105,9 @@ void powerDistribution(const control_t *control)
 
     float motor_pwm[4];
     float Tpart = constrain(control->thrust, 0.0f, 0.6f);  
-    float tauXpart = constrain(control->roll, -MAX_TORQUE, MAX_TORQUE) / (CRAZYFLIE_ARM_LENGTH * .707106781f);
-    float tauYpart = constrain(control->pitch, -MAX_TORQUE, MAX_TORQUE) / (CRAZYFLIE_ARM_LENGTH * .707106781f);
-    float tauZpart = control->yaw / THRUST_TO_TORQUE_m;
+    float tauXpart = constrain(control->roll, -MAX_TORQUE, MAX_TORQUE) * invCF_ARM_LENGTH; // / (CRAZYFLIE_ARM_LENGTH * .707106781f);
+    float tauYpart = constrain(control->pitch, -MAX_TORQUE, MAX_TORQUE) * invCF_ARM_LENGTH; // / (CRAZYFLIE_ARM_LENGTH * .707106781f);
+    float tauZpart = control->yaw * invTTT; // / THRUST_TO_TORQUE_m;
 
     omega[0] = (Tpart - tauXpart - tauYpart - tauZpart)/4.0f;
     omega[1] = (Tpart - tauXpart + tauYpart + tauZpart)/4.0f;
@@ -113,12 +118,12 @@ void powerDistribution(const control_t *control)
     {
       if (omega[i] < 0.0f) 
       {
-        omega[i] = 0.0f;
+        //omega[i] = 0.0f;
         motor_pwm[i] = 0.0f;
       } 
       else 
       {
-        motor_pwm[i] = (-PWM_TO_THRUST_b + arm_sqrt(PWM_TO_THRUST_b*PWM_TO_THRUST_b + 4.0f * PWM_TO_THRUST_a * omega[i])) / (2.0f * PWM_TO_THRUST_a);
+        motor_pwm[i] = (-PWM_TO_THRUST_b + arm_sqrt(PWM_TO_THRUST_b*PWM_TO_THRUST_b + 4.0f * PWM_TO_THRUST_a * omega[i])) * inv2PWM2TA; // / (2.0f * PWM_TO_THRUST_a);
       }
       motor_pwm[i] = constrain(motor_pwm[i], 0.1f, 1.0f);
       Power[i] = (int32_t)(65535*motor_pwm[i]);

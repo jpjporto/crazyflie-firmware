@@ -16,6 +16,8 @@ static bool isInit = false;
 #define HINF_STATES 16
 static float xHinf[HINF_STATES];
 static float e[12];
+float u[4];
+float xHinfNext[HINF_STATES];
 
 #define DEG_TO_RAD 0.0174533f
 
@@ -34,9 +36,7 @@ void hinfControllerInit(void)
 
 void hinfController(control_t *control, setpoint_t *setpoint, const state_t *state, const uint32_t tick)
 {
-  float u[4];
-  float xHinfNext[HINF_STATES];
-  
+
   if(setpoint->poscf1.z > 0.0f) {
     control->enabled = 1;
   } else {

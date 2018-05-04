@@ -144,6 +144,20 @@ static lpsAlgoOptions_t algoOptions = {
     {timestamp: 1, x: 0.159, y: 4.365, z: 0.175},
 #endif
    },
+/*     .anchorPosition = {
+    {timestamp: 1, x: 8.25 , y: 0.155, z: 3.312},
+    {timestamp: 1, x: 0.155, y: 2.023, z: 3.208},
+    {timestamp: 1, x: 9.827, y:10.426, z: 3.265},
+    {timestamp: 1, x: 0.155, y:10.510, z: 3.200},
+    {timestamp: 1, x:10.086, y: 2.380, z: 0.212},
+    {timestamp: 1, x: 0.155, y: 2.300, z: 0.211},
+#if LOCODECK_NR_OF_ANCHORS > 6
+    {timestamp: 1, x: 9.827, y:10.050, z: 0.212},
+#endif
+#if LOCODECK_NR_OF_ANCHORS > 7
+    {timestamp: 1, x: 0.155, y:10.040, z: 0.214},
+#endif
+   },*/
 
    .combinedAnchorPositionOk = true,
 };

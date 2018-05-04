@@ -44,6 +44,7 @@
 // Outlier rejection
 #define RANGING_HISTORY_LENGTH 32
 #define OUTLIER_TH 4
+/*
 static struct {
   float32_t history[RANGING_HISTORY_LENGTH];
   size_t ptr;
@@ -69,6 +70,7 @@ static volatile uint8_t curr_seq = 0;
 static int current_anchor = 0;
 
 static bool ranging_complete = false;
+
 static bool lpp_transaction = false;
 
 static lpsLppShortPacket_t lppShortPacket;
@@ -77,10 +79,13 @@ static lpsAlgoOptions_t* options;
 
 // TDMA handling
 static bool tdmaSynchronized;
+
 static dwTime_t frameStart;
+*/
 
 static bool rangingOk;
 
+/*
 static void txcallback(dwDevice_t *dev)
 {
   dwTime_t departure;
@@ -96,7 +101,6 @@ static void txcallback(dwDevice_t *dev)
       break;
   }
 }
-
 
 static uint32_t rxcallback(dwDevice_t *dev) {
   dwTime_t arival = { .full=0 };
@@ -222,16 +226,19 @@ static uint32_t rxcallback(dwDevice_t *dev) {
   }
   return MAX_TIMEOUT;
 }
+*/
 
 /* Adjust time for schedule transfer by DW1000 radio. Set 9 LSB to 0 */
+/*
 static uint32_t adjustTxRxTime(dwTime_t *time)
 {
   uint32_t added = (1<<9) - (time->low32 & ((1<<9)-1));
   time->low32 = (time->low32 & ~((1<<9)-1)) + (1<<9);
   return added;
 }
-
+*/
 /* Calculate the transmit time for a given timeslot in the current frame */
+/*
 static dwTime_t transmitTimeForSlot(int slot)
 {
   dwTime_t transmitTime = { .full = 0 };
@@ -242,7 +249,8 @@ static dwTime_t transmitTimeForSlot(int slot)
   adjustTxRxTime(&transmitTime);
   return transmitTime;
 }
-
+*/
+/*
 static void initiateRanging(dwDevice_t *dev)
 {
   if (!options->useTdma || tdmaSynchronized) {
@@ -297,9 +305,10 @@ static void sendLppShort(dwDevice_t *dev, lpsLppShortPacket_t *packet)
   dwWaitForResponse(dev, false);
   dwStartTransmit(dev);
 }
+*/
 
 static uint32_t twrTagOnEvent(dwDevice_t *dev, uwbEvent_t event)
-{
+{/*
   static uint32_t statisticStartTick = 0;
 
   if (statisticStartTick == 0) {
@@ -371,12 +380,12 @@ static uint32_t twrTagOnEvent(dwDevice_t *dev, uwbEvent_t event)
     default:
       configASSERT(false);
   }
-
+*/
   return MAX_TIMEOUT;
 }
 
 static void twrTagInit(dwDevice_t *dev, lpsAlgoOptions_t* algoOptions)
-{
+{/*
   options = algoOptions;
 
   // Initialize the packet in the TX buffer
@@ -408,6 +417,7 @@ static void twrTagInit(dwDevice_t *dev, lpsAlgoOptions_t* algoOptions)
   dwCommitConfiguration(dev);
 
   rangingOk = false;
+  */
 }
 
 static bool isRangingOk()
@@ -420,7 +430,7 @@ uwbAlgorithm_t uwbTwrTagAlgorithm = {
   .onEvent = twrTagOnEvent,
   .isRangingOk = isRangingOk,
 };
-
+/*
 LOG_GROUP_START(twr)
 LOG_ADD(LOG_UINT8, rangingSuccessRate0, &rangingSuccessRate[0])
 LOG_ADD(LOG_UINT8, rangingPerSec0, &rangingPerSec[0])
@@ -435,3 +445,4 @@ LOG_ADD(LOG_UINT8, rangingPerSec4, &rangingPerSec[4])
 LOG_ADD(LOG_UINT8, rangingSuccessRate5, &rangingSuccessRate[5])
 LOG_ADD(LOG_UINT8, rangingPerSec5, &rangingPerSec[5])
 LOG_GROUP_STOP(twr)
+*/
