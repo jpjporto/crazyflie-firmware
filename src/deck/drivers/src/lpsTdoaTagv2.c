@@ -65,6 +65,50 @@ static uint16_t statsRecv[LOCODECK_NR_OF_ANCHORS];
 static bool rangingOk;
 static uint32_t anchorStatusTimeout[LOCODECK_NR_OF_ANCHORS];
 
+#ifdef DEC_DECA
+static packet_t txPacket;
+void setCFState(const state_t *state)
+{
+  lpsCFStatePacket_t *statePacket = (lpsCFStatePacket_t *)txPacket.payload;
+  
+  statePacket->cfstate_s.x = state->position.x;
+  statePacket->cfstate_s.y = state->position.y;
+  statePacket->cfstate_s.z = state->position.z;
+  statePacket->cfstate_s.vx = state->velocity.x;
+  statePacket->cfstate_s.vy = state->velocity.y;
+  statePacket->cfstate_s.vz = state->velocity.z;
+  statePacket->cfstate_s.roll = state->attitude.roll;
+  statePacket->cfstate_s.pitch = state->attitude.pitch;
+  statePacket->cfstate_s.yaw = state->attitude.yaw;
+  statePacket->cfstate_s.vroll = state->attitudeRate.roll;
+  statePacket->cfstate_s.vpitch = state->attitudeRate.pitch;
+  statePacket->cfstate_s.vyaw = state->attitudeRate.yaw;
+}
+
+static void sendCFState(dwDevice_t *dev, lpsCFStatePacket_t *packet)
+{
+  static uint8_t firstEntry = 1;
+  dwIdle(dev);
+
+  if(firstEntry)
+  {
+    MAC80215_PACKET_INIT(txPacket, MAC802154_TYPE_DATA);
+    txPacket.pan = 0xbccf;
+    txPacket.sourceAddress = 0xbccf00000000cf00 | CFNUM;
+    txPacket.destAddress = 0xbccf0000000000FF;
+    
+    txPacket.payload[0] = LPP_STATE_PACKET;
+  }
+  
+  dwNewTransmit(dev);
+  dwSetDefaults(dev);
+  dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+sizeof(lpsCFStatePacket_t));
+
+  dwWaitForResponse(dev, true);
+  dwStartTransmit(dev);
+}
+#endif
+
 //static uint64_t truncateToLocalTimeStamp(uint64_t fullTimeStamp) {
 //  return fullTimeStamp & 0x00FFFFFFFFul;
 //}
@@ -177,10 +221,6 @@ static void addToLog(const uint8_t anchor, const float tdoaDistDiff, const range
   }
 }
 
-/*static uint32_t dtArtAnan, temp1, temp2;
-static int32_t tdoaA; 
-static uint32_t rArAnAn, tofArAnAn, rAnTT, tAnAn, rArTT;
-static uint8_t pktID0, pktID1;*/
 // A note on variable names. They might seem a bit verbose but express quite a lot of information
 // We have three actors: Reference anchor (Ar), Anchor n (An) and the deck on the CF called Tag (T)
 // rxAr_by_An_in_cl_An should be interpreted as "The time when packet was received from the Reference Anchor by Anchor N expressed in the clock of Anchor N"
@@ -212,20 +252,6 @@ static void rxcallback(dwDevice_t *dev) {
       {
         enqueueTDOA(previousAnchor, anchor, tdoaDistDiff);
         addToLog(anchor, tdoaDistDiff, packet);
-        /*if((previousAnchor == 0) && (anchor == 1) && (tdoaDistDiff <= -1))
-        {
-            dtArtAnan = (packet->timestamps[anchor] - packet->timestamps[previousAnchor])+ packet->distances[previousAnchor];
-            temp1 = arrival.full - arrivals[previousAnchor].full;
-            temp2 = (double)temp1 * clockCorrection_T_To_A[anchor];
-            tdoaA = temp2 - dtArtAnan;
-            rArAnAn = packet->timestamps[previousAnchor];
-            tofArAnAn = packet->distances[previousAnchor];
-            rAnTT = arrival.full;
-            tAnAn = packet->timestamps[anchor];
-            rArTT = arrivals[previousAnchor].full;
-            pktID0 = rxPacketBuffer[previousAnchor].Idx;
-            pktID1 = packet->Idx;
-        }*/
 
         statsAcceptedPackets++;
       }
@@ -353,19 +379,5 @@ LOG_ADD(LOG_UINT16, recv4, &statsRecv[4])
 LOG_ADD(LOG_UINT16, recv5, &statsRecv[5])
 LOG_ADD(LOG_UINT16, recv6, &statsRecv[6])
 LOG_ADD(LOG_UINT16, recv7, &statsRecv[7])
-
-/*LOG_ADD(LOG_UINT32, dtArtAnan, &dtArtAnan)
-LOG_ADD(LOG_UINT32, temp1, &temp1)
-LOG_ADD(LOG_UINT32, temp2, &temp2)
-LOG_ADD(LOG_INT32, tdoaA, &tdoaA)
-
-LOG_ADD(LOG_UINT8, pktID0, &pktID0)
-LOG_ADD(LOG_UINT8, pktID1, &pktID1)
-
-LOG_ADD(LOG_UINT32, rArAnAn, &rArAnAn)
-LOG_ADD(LOG_UINT32, tofArAnAn, &tofArAnAn)
-LOG_ADD(LOG_UINT32, rAnTT, &rAnTT)
-LOG_ADD(LOG_UINT32, tAnAn, &tAnAn)
-LOG_ADD(LOG_UINT32, rArTT, &rArTT)*/
 
 LOG_GROUP_STOP(tdoa)

@@ -59,13 +59,12 @@ struct CommanderCrtpBroadcast
   int16_t zs0;
   int16_t xs1;
   int16_t ys1;
-  int16_t zs1;
   int16_t xs2;
   int16_t ys2;
-  int16_t zs2;
   int16_t xs3;
   int16_t ys3;
-  int16_t zs3;
+  int16_t xs4;
+  int16_t ys4;
 } __attribute__((packed));
 
 /**
@@ -235,8 +234,11 @@ static point_t prevSetpoint1;
 static point_t prevSetpoint2;
 #if CFNUM >=3
 static point_t prevSetpoint3;
-#if CFNUM == 4
+#if CFNUM >= 4
 static point_t prevSetpoint4;
+#if CFNUM == 5
+static point_t prevSetpoint5;
+#endif
 #endif
 #endif
 #endif
@@ -275,15 +277,16 @@ void getSetpoint(setpoint_t *setpoint)
   #if CFNUM >= 2
       setpoint->poscf2.x = (float)values->xs1 * 0.000125f; // Scale factor, same as dividing by 8000
       setpoint->poscf2.y = (float)values->ys1 * 0.000125f;
-      setpoint->poscf2.z = (float)values->zs1 * 0.000125f;
     #if CFNUM >= 3
       setpoint->poscf3.x = (float)values->xs2 * 0.000125f; // Scale factor, same as dividing by 8000
       setpoint->poscf3.y = (float)values->ys2 * 0.000125f;
-      setpoint->poscf3.z = (float)values->zs2 * 0.000125f;
-      #if CFNUM == 4
+      #if CFNUM >= 4
       setpoint->poscf4.x = (float)values->xs3 * 0.000125f; // Scale factor, same as dividing by 8000
       setpoint->poscf4.y = (float)values->ys3 * 0.000125f;
-      setpoint->poscf4.z = (float)values->zs3 * 0.000125f;
+        #if CFNUM == 5
+      setpoint->poscf5.x = (float)values->xs4 * 0.000125f; // Scale factor, same as dividing by 8000
+      setpoint->poscf5.y = (float)values->ys4 * 0.000125f;
+        #endif
       #endif
     #endif
   #endif
@@ -298,24 +301,24 @@ void getSetpoint(setpoint_t *setpoint)
   #if CFNUM >= 2
       setpoint->velcf2.x = (setpoint->poscf2.x - prevSetpoint2.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
       setpoint->velcf2.y = (setpoint->poscf2.y - prevSetpoint2.y) * 500 * seqDiff;
-      //setpoint->velcf2.z = (setpoint->poscf2.z - prevSetpoint2.z) * 500 * seqDiff; // Realistically, we'll always keep them at same height
       prevSetpoint2.x = setpoint->poscf2.x;
       prevSetpoint2.y = setpoint->poscf2.y;
-      //prevSetpoint2.z = setpoint->poscf2.z;
     #if CFNUM >= 3
       setpoint->velcf3.x = (setpoint->poscf3.x - prevSetpoint3.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
       setpoint->velcf3.y = (setpoint->poscf3.y - prevSetpoint3.y) * 500 * seqDiff;
-      //setpoint->velcf3.z = (setpoint->poscf3.z - prevSetpoint3.z) * 500 * seqDiff;
       prevSetpoint3.x = setpoint->poscf3.x;
       prevSetpoint3.y = setpoint->poscf3.y;
-      //prevSetpoint3.z = setpoint->poscf3.z;
-      #if CFNUM == 4
+      #if CFNUM >= 4
       setpoint->velcf4.x = (setpoint->poscf4.x - prevSetpoint4.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
       setpoint->velcf4.y = (setpoint->poscf4.y - prevSetpoint4.y) * 500 * seqDiff;
-      //setpoint->velcf4.z = (setpoint->poscf4.z - prevSetpoint4.z) * 500 * seqDiff;
       prevSetpoint4.x = setpoint->poscf4.x;
       prevSetpoint4.y = setpoint->poscf4.y;
-      //prevSetpoint4.z = setpoint->poscf4.z;
+        #if CFNUM == 5
+      setpoint->velcf5.x = (setpoint->poscf5.x - prevSetpoint5.x) * 500 * seqDiff; // Sending a setpoint packet every 2ms.
+      setpoint->velcf5.y = (setpoint->poscf5.y - prevSetpoint5.y) * 500 * seqDiff;
+      prevSetpoint5.x = setpoint->poscf5.x;
+      prevSetpoint5.y = setpoint->poscf5.y;
+        #endif
       #endif
     #endif
   #endif

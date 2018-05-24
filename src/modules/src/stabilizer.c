@@ -45,6 +45,11 @@
 #include "estimator_kalman.h"
 #include "estimator.h"
 
+#ifdef DEC_DECA
+#include "locodeck.h"
+#include "lpsTdoaTagv2.h"
+#endif
+
 static bool isInit;
 static bool emergencyStop = false;
 static int emergencyStopTimeout = EMERGENCY_STOP_TIMEOUT_DISABLED;
@@ -164,6 +169,10 @@ static void stabilizerTask(void* param)
         powerDistribution(&control);
       }
     }
+    
+    #ifdef DEC_DECA
+    setCFState(&state);
+    #endif
 
     tick++;
   }

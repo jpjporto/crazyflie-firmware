@@ -569,6 +569,7 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
   static arm_matrix_instance_f32 tmpNN2m = { STATE_DIM, STATE_DIM, tmpNN2d};
 
   float dt2 = dt*dt;
+  float dt2d2 = dt2 / 2.0f;
 
   // ====== DYNAMICS LINEARIZATION ======
   // Initialize as the identity
@@ -704,12 +705,12 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
     // position updates in the body frame (will be rotated to inertial frame)
     dx = S[STATE_PX] * dt;
     dy = S[STATE_PY] * dt;
-    dz = S[STATE_PZ] * dt + zacc * dt2 / 2.0f; // thrust can only be produced in the body's Z direction
+    dz = S[STATE_PZ] * dt + zacc * dt2d2; // thrust can only be produced in the body's Z direction
 
     // position update
     S[STATE_X] += R[0][0] * dx + R[0][1] * dy + R[0][2] * dz;
     S[STATE_Y] += R[1][0] * dx + R[1][1] * dy + R[1][2] * dz;
-    S[STATE_Z] += R[2][0] * dx + R[2][1] * dy + R[2][2] * dz - GRAVITY_MAGNITUDE * dt2 / 2.0f;
+    S[STATE_Z] += R[2][0] * dx + R[2][1] * dy + R[2][2] * dz - GRAVITY_MAGNITUDE * dt2d2;
 
     // keep previous time step's state for the update
     tmpSPX = S[STATE_PX];
@@ -724,14 +725,14 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
   else // Acceleration can be in any direction, as measured by the accelerometer. This occurs, eg. in freefall or while being carried.
   {
     // position updates in the body frame (will be rotated to inertial frame)
-    dx = S[STATE_PX] * dt + acc->x * dt2 / 2.0f;
-    dy = S[STATE_PY] * dt + acc->y * dt2 / 2.0f;
-    dz = S[STATE_PZ] * dt + acc->z * dt2 / 2.0f; // thrust can only be produced in the body's Z direction
+    dx = S[STATE_PX] * dt + acc->x * dt2d2;
+    dy = S[STATE_PY] * dt + acc->y * dt2d2;
+    dz = S[STATE_PZ] * dt + acc->z * dt2d2; // thrust can only be produced in the body's Z direction
 
     // position update
     S[STATE_X] += R[0][0] * dx + R[0][1] * dy + R[0][2] * dz;
     S[STATE_Y] += R[1][0] * dx + R[1][1] * dy + R[1][2] * dz;
-    S[STATE_Z] += R[2][0] * dx + R[2][1] * dy + R[2][2] * dz - GRAVITY_MAGNITUDE * dt2 / 2.0f;
+    S[STATE_Z] += R[2][0] * dx + R[2][1] * dy + R[2][2] * dz - GRAVITY_MAGNITUDE * dt2d2;
 
     // keep previous time step's state for the update
     tmpSPX = S[STATE_PX];
@@ -980,12 +981,17 @@ static void stateEstimatorUpdateWithPosition(positionMeasurement_t *xyz)
   }
   // a direct measurement of states x, y, and z
   // do a scalar update for each state, since this should be faster than updating all together
-  for (int i=0; i<3; i++) {
+  /*for (int i=0; i<3; i++) {
     float h[STATE_DIM] = {0};
     arm_matrix_instance_f32 H = {1, STATE_DIM, h};
     h[STATE_X+i] = 1;
     stateEstimatorScalarUpdate(&H, xyz->pos[i] - S[STATE_X+i], xyz->stdDev);
-  }
+  }*/
+  static float hx[STATE_DIM] = {1,0,0,0,0,0,0,0,0}, hy[STATE_DIM] = {0,1,0,0,0,0,0,0,0}, hz[STATE_DIM] = {0,0,1,0,0,0,0,0,0};
+  static arm_matrix_instance_f32 Hx = {1, STATE_DIM, hx}, Hy = {1, STATE_DIM, hy}, Hz = {1, STATE_DIM, hz};
+  stateEstimatorScalarUpdate(&Hx, xyz->pos[0] - S[STATE_X], xyz->stdDev);
+  stateEstimatorScalarUpdate(&Hy, xyz->pos[1] - S[STATE_Y], xyz->stdDev);
+  stateEstimatorScalarUpdate(&Hz, xyz->pos[2] - S[STATE_Z], xyz->stdDev);
 }
 
 /*

@@ -131,17 +131,17 @@ static lpsAlgoOptions_t algoOptions = {
   // To set a static anchor position from startup, uncomment and modify the
   // following code:
   .anchorPosition = {
-    {timestamp: 1, x: 4.495, y: 0.600, z: 2.181},
-    {timestamp: 1, x: 0.155, y: 0.190, z: 2.190},
-    {timestamp: 1, x: 4.498, y: 4.342, z: 2.174},
-    {timestamp: 1, x: 0.155, y: 4.245, z: 2.179},
-    {timestamp: 1, x: 4.498, y: 0.670, z: 0.180},
-    {timestamp: 1, x: 0.159, y: 0.780, z: 0.175},
+    {timestamp: 1, x: 4.495, y: 0.600, z: 2.195},
+    {timestamp: 1, x: 0.155, y: 0.190, z: 2.198},
+    {timestamp: 1, x: 4.498, y: 4.342, z: 2.185},
+    {timestamp: 1, x: 0.155, y: 4.245, z: 2.192},
+    {timestamp: 1, x: 4.498, y: 0.670, z: 0.190},
+    {timestamp: 1, x: 0.159, y: 0.780, z: 0.185},
 #if LOCODECK_NR_OF_ANCHORS > 6
-    {timestamp: 1, x: 4.500, y: 4.332, z: 0.180},
+    {timestamp: 1, x: 4.500, y: 4.332, z: 0.195},
 #endif
 #if LOCODECK_NR_OF_ANCHORS > 7
-    {timestamp: 1, x: 0.159, y: 4.365, z: 0.175},
+    {timestamp: 1, x: 0.159, y: 4.365, z: 0.190},
 #endif
    },
 /*     .anchorPosition = {

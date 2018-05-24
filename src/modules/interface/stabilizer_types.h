@@ -144,10 +144,12 @@ typedef struct state_s {
   point_t poscf1;
   point_t poscf2;
   point_t poscf3;
+  point_t poscf4;
 #ifdef SETPOINT_VEL
   velocity_t velcf1;
   velocity_t velcf2;
   velocity_t velcf3;
+  velocity_t velcf4;
 #endif
 } state_t;
 
@@ -188,11 +190,13 @@ typedef struct setpoint_s {
   point_t poscf2;
   point_t poscf3;
   point_t poscf4;
+  point_t poscf5;
 
   velocity_t velcf1;
   velocity_t velcf2;
   velocity_t velcf3;
   velocity_t velcf4;
+  velocity_t velcf5;
   
   uint8_t sys_mode;
 
@@ -254,7 +258,7 @@ typedef struct tofMeasurement_s {
 #define RATE_MAIN_LOOP RATE_1000_HZ
 #define ATTITUDE_RATE RATE_500_HZ
 #define POSITION_RATE RATE_100_HZ
-#define HINF_RATE RATE_500_HZ
+#define HINF_RATE RATE_250_HZ
 
 #define RATE_DO_EXECUTE(RATE_HZ, TICK) ((TICK % (RATE_MAIN_LOOP / RATE_HZ)) == 0)
 

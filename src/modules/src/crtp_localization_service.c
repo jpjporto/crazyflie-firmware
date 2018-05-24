@@ -44,6 +44,8 @@
 #define NBR_OF_RANGES_IN_PACKET   5
 #define DEFAULT_EMERGENCY_STOP_TIMEOUT (1 * RATE_MAIN_LOOP)
 
+#define VICON_RATE   100
+
 typedef enum
 {
   EXT_POSITION  = 0,
@@ -91,15 +93,18 @@ static void extPositionHandler(CRTPPacket* pk);
 static void genericLocHandle(CRTPPacket* pk);
 
 static void broadcastPosHandler(CRTPPacket* pk);
-static ExtBroadPosCache crtpBroadExtPosCache;
+static ExtBroadPosCache crtpBroadExtPosCache1, crtpBroadExtPosCache2;
 static uint8_t prevSeqNum[CFNUM] = {0xFF};
 
 #if CFNUM >= 2
 static point_t prevPoscf1;
 #if CFNUM >= 3
 static point_t prevPoscf2;
-#if CFNUM == 4
+#if CFNUM >= 4
 static point_t prevPoscf3;
+#if CFNUM == 5
+static point_t prevPoscf4;
+#endif
 #endif
 #endif
 #endif
@@ -161,9 +166,18 @@ static void genericLocHandle(CRTPPacket* pk)
 
 static void broadcastPosHandler(CRTPPacket* pk)
 {
-  crtpBroadExtPosCache.targetVal = *((struct CrtpBroadExtPosition*)pk->data);
-  //crtpBroadExtPosCache.activeSide = !crtpBroadExtPosCache.activeSide;
-  crtpBroadExtPosCache.timestamp = xTaskGetTickCount();
+  if (pk->data[0] == 1)
+  {
+    crtpBroadExtPosCache1.targetVal = *((struct CrtpBroadExtPosition*)&pk->data[1]);
+    //crtpBroadExtPosCache.activeSide = !crtpBroadExtPosCache.activeSide;
+    crtpBroadExtPosCache1.timestamp = xTaskGetTickCount();
+  }
+  else if(pk->data[0] == 2)
+  {
+    crtpBroadExtPosCache2.targetVal = *((struct CrtpBroadExtPosition*)&pk->data[1]);
+    //crtpBroadExtPosCache.activeSide = !crtpBroadExtPosCache.activeSide;
+    crtpBroadExtPosCache2.timestamp = xTaskGetTickCount();
+  }
 }
 
 bool getExtPosition(state_t *state)
@@ -180,141 +194,216 @@ bool getExtPosition(state_t *state)
     return true;
   }
   
-  if ((xTaskGetTickCount() - crtpBroadExtPosCache.timestamp) < M2T(5)) {
+  if ((xTaskGetTickCount() - crtpBroadExtPosCache1.timestamp) < M2T(5)) {
 #if CFNUM == 1
-    uint8_t seqDiff0 = crtpBroadExtPosCache.targetVal.seq0 - prevSeqNum[0];
+    uint8_t seqDiff0 = crtpBroadExtPosCache1.targetVal.seq0 - prevSeqNum[0];
     if(seqDiff0 != 0) {
-      prevSeqNum[0] = crtpBroadExtPosCache.targetVal.seq0;
-      ext_pos.x = (float)crtpBroadExtPosCache.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
-      ext_pos.y = (float)crtpBroadExtPosCache.targetVal.y0 * 0.000125f;
-      ext_pos.z = (float)crtpBroadExtPosCache.targetVal.z0 * 0.000125f;
+      prevSeqNum[0] = crtpBroadExtPosCache1.targetVal.seq0;
+      ext_pos.x = (float)crtpBroadExtPosCache1.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
+      ext_pos.y = (float)crtpBroadExtPosCache1.targetVal.y0 * 0.000125f;
+      ext_pos.z = (float)crtpBroadExtPosCache1.targetVal.z0 * 0.000125f;
       ext_pos.stdDev = 0.01f;
       estimatorKalmanEnqueuePosition(&ext_pos);
       return true;
     }
 #elif CFNUM == 2
-    uint8_t seqDiff0 = crtpBroadExtPosCache.targetVal.seq0 - prevSeqNum[0];
+    uint8_t seqDiff0 = crtpBroadExtPosCache1.targetVal.seq0 - prevSeqNum[0];
     if(seqDiff0 != 0) {
-      prevSeqNum[0] = crtpBroadExtPosCache.targetVal.seq0;
-      state->poscf1.x = (float)crtpBroadExtPosCache.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
-      state->poscf1.y = (float)crtpBroadExtPosCache.targetVal.y0 * 0.000125f;
-      state->poscf1.z = (float)crtpBroadExtPosCache.targetVal.z0 * 0.000125f;
+      prevSeqNum[0] = crtpBroadExtPosCache1.targetVal.seq0;
+      state->poscf1.x = (float)crtpBroadExtPosCache1.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf1.y = (float)crtpBroadExtPosCache1.targetVal.y0 * 0.000125f;
+      state->poscf1.z = (float)crtpBroadExtPosCache1.targetVal.z0 * 0.000125f;
       //Decentralized controller, estimate velocity of leader
-      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * 100 * seqDiff0; //Vicon updates every 100hz
-      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * 100 * seqDiff0;
-      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * 100 * seqDiff0;
+      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * VICON_RATE * seqDiff0; //Vicon updates every 100hz
+      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * VICON_RATE * seqDiff0;
+      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * VICON_RATE * seqDiff0;
       prevPoscf1.x = state->poscf1.x;
       prevPoscf1.y = state->poscf1.y;
       prevPoscf1.z = state->poscf1.z;
     }
     
-    uint8_t seqDiff1 = crtpBroadExtPosCache.targetVal.seq1 - prevSeqNum[1];
+    uint8_t seqDiff1 = crtpBroadExtPosCache1.targetVal.seq1 - prevSeqNum[1];
     if(seqDiff1 != 0) {
-      prevSeqNum[1] = crtpBroadExtPosCache.targetVal.seq1;
-      ext_pos.x = (float)crtpBroadExtPosCache.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
-      ext_pos.y = (float)crtpBroadExtPosCache.targetVal.y1 * 0.000125f;
-      ext_pos.z = (float)crtpBroadExtPosCache.targetVal.z1 * 0.000125f;
+      prevSeqNum[1] = crtpBroadExtPosCache1.targetVal.seq1;
+      ext_pos.x = (float)crtpBroadExtPosCache1.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
+      ext_pos.y = (float)crtpBroadExtPosCache1.targetVal.y1 * 0.000125f;
+      ext_pos.z = (float)crtpBroadExtPosCache1.targetVal.z1 * 0.000125f;
       ext_pos.stdDev = 0.01f;
       estimatorKalmanEnqueuePosition(&ext_pos);
       return true;
     }
 #elif CFNUM == 3
-    uint8_t seqDiff0 = crtpBroadExtPosCache.targetVal.seq0 - prevSeqNum[0];
+    uint8_t seqDiff0 = crtpBroadExtPosCache1.targetVal.seq0 - prevSeqNum[0];
     if(seqDiff0 != 0) {
-      prevSeqNum[0] = crtpBroadExtPosCache.targetVal.seq0;
-      state->poscf1.x = (float)crtpBroadExtPosCache.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
-      state->poscf1.y = (float)crtpBroadExtPosCache.targetVal.y0 * 0.000125f;
-      state->poscf1.z = (float)crtpBroadExtPosCache.targetVal.z0 * 0.000125f;
+      prevSeqNum[0] = crtpBroadExtPosCache1.targetVal.seq0;
+      state->poscf1.x = (float)crtpBroadExtPosCache1.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf1.y = (float)crtpBroadExtPosCache1.targetVal.y0 * 0.000125f;
+      state->poscf1.z = (float)crtpBroadExtPosCache1.targetVal.z0 * 0.000125f;
       //Decentralized controller, estimate velocity of leader
-      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * 100 * seqDiff0; //Vicon updates every 100hz
-      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * 100 * seqDiff0;
-      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * 100 * seqDiff0;
+      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * VICON_RATE * seqDiff0; //Vicon updates every 100hz
+      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * VICON_RATE * seqDiff0;
+      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * VICON_RATE * seqDiff0;
       prevPoscf1.x = state->poscf1.x;
       prevPoscf1.y = state->poscf1.y;
       prevPoscf1.z = state->poscf1.z;
     }
     
-    uint8_t seqDiff1 = crtpBroadExtPosCache.targetVal.seq1 - prevSeqNum[1];
+    uint8_t seqDiff1 = crtpBroadExtPosCache1.targetVal.seq1 - prevSeqNum[1];
     if(seqDiff1 != 0) {
-      prevSeqNum[1] = crtpBroadExtPosCache.targetVal.seq1;
-      state->poscf2.x = (float)crtpBroadExtPosCache.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
-      state->poscf2.y = (float)crtpBroadExtPosCache.targetVal.y1 * 0.000125f;
-      state->poscf2.z = (float)crtpBroadExtPosCache.targetVal.z1 * 0.000125f;
+      prevSeqNum[1] = crtpBroadExtPosCache1.targetVal.seq1;
+      state->poscf2.x = (float)crtpBroadExtPosCache1.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf2.y = (float)crtpBroadExtPosCache1.targetVal.y1 * 0.000125f;
+      state->poscf2.z = (float)crtpBroadExtPosCache1.targetVal.z1 * 0.000125f;
       //Decentralized controller, estimate velocity of robot in front
-      state->velcf2.x = (state->poscf2.x - prevPoscf2.x) * 100 * seqDiff1; //Vicon updates every 100hz
-      state->velcf2.y = (state->poscf2.y - prevPoscf2.y) * 100 * seqDiff1;
-      state->velcf2.z = (state->poscf2.z - prevPoscf2.z) * 100 * seqDiff1;
+      state->velcf2.x = (state->poscf2.x - prevPoscf2.x) * VICON_RATE * seqDiff1; //Vicon updates every 100hz
+      state->velcf2.y = (state->poscf2.y - prevPoscf2.y) * VICON_RATE * seqDiff1;
+      state->velcf2.z = (state->poscf2.z - prevPoscf2.z) * VICON_RATE * seqDiff1;
       prevPoscf2.x = state->poscf2.x;
       prevPoscf2.y = state->poscf2.y;
       prevPoscf2.z = state->poscf2.z;
     }
     
-    uint8_t seqDiff2 = crtpBroadExtPosCache.targetVal.seq2 - prevSeqNum[2];
+    uint8_t seqDiff2 = crtpBroadExtPosCache1.targetVal.seq2 - prevSeqNum[2];
     if(seqDiff2 != 0) {
-      prevSeqNum[2] = crtpBroadExtPosCache.targetVal.seq2;
-      ext_pos.x = (float)crtpBroadExtPosCache.targetVal.x2 * 0.000125f; // Scale factor, same as dividing by 8000
-      ext_pos.y = (float)crtpBroadExtPosCache.targetVal.y2 * 0.000125f;
-      ext_pos.z = (float)crtpBroadExtPosCache.targetVal.z2 * 0.000125f;
+      prevSeqNum[2] = crtpBroadExtPosCache1.targetVal.seq2;
+      ext_pos.x = (float)crtpBroadExtPosCache1.targetVal.x2 * 0.000125f; // Scale factor, same as dividing by 8000
+      ext_pos.y = (float)crtpBroadExtPosCache1.targetVal.y2 * 0.000125f;
+      ext_pos.z = (float)crtpBroadExtPosCache1.targetVal.z2 * 0.000125f;
       ext_pos.stdDev = 0.01f;
       estimatorKalmanEnqueuePosition(&ext_pos);
       return true;
     }
 #elif CFNUM == 4
-    uint8_t seqDiff0 = crtpBroadExtPosCache.targetVal.seq0 - prevSeqNum[0];
+    uint8_t seqDiff0 = crtpBroadExtPosCache1.targetVal.seq0 - prevSeqNum[0];
     if(seqDiff0 != 0) {
-      prevSeqNum[0] = crtpBroadExtPosCache.targetVal.seq0;
-      state->poscf1.x = (float)crtpBroadExtPosCache.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
-      state->poscf1.y = (float)crtpBroadExtPosCache.targetVal.y0 * 0.000125f;
-      state->poscf1.z = (float)crtpBroadExtPosCache.targetVal.z0 * 0.000125f;
+      prevSeqNum[0] = crtpBroadExtPosCache1.targetVal.seq0;
+      state->poscf1.x = (float)crtpBroadExtPosCache1.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf1.y = (float)crtpBroadExtPosCache1.targetVal.y0 * 0.000125f;
+      state->poscf1.z = (float)crtpBroadExtPosCache1.targetVal.z0 * 0.000125f;
       //Decentralized controller, estimate velocity of leader
-      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * 100 * seqDiff0; //Vicon updates every 100hz
-      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * 100 * seqDiff0;
-      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * 100 * seqDiff0;
+      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * VICON_RATE * seqDiff0; //Vicon updates every 100hz
+      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * VICON_RATE * seqDiff0;
+      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * VICON_RATE * seqDiff0;
       prevPoscf1.x = state->poscf1.x;
       prevPoscf1.y = state->poscf1.y;
       prevPoscf1.z = state->poscf1.z;
     }
     
-    uint8_t seqDiff1 = crtpBroadExtPosCache.targetVal.seq1 - prevSeqNum[1];
+    uint8_t seqDiff1 = crtpBroadExtPosCache1.targetVal.seq1 - prevSeqNum[1];
     if(seqDiff1 != 0) {
-      prevSeqNum[1] = crtpBroadExtPosCache.targetVal.seq1;
-      state->poscf2.x = (float)crtpBroadExtPosCache.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
-      state->poscf2.y = (float)crtpBroadExtPosCache.targetVal.y1 * 0.000125f;
-      state->poscf2.z = (float)crtpBroadExtPosCache.targetVal.z1 * 0.000125f;
+      prevSeqNum[1] = crtpBroadExtPosCache1.targetVal.seq1;
+      state->poscf2.x = (float)crtpBroadExtPosCache1.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf2.y = (float)crtpBroadExtPosCache1.targetVal.y1 * 0.000125f;
+      state->poscf2.z = (float)crtpBroadExtPosCache1.targetVal.z1 * 0.000125f;
       //Decentralized controller, estimate velocity of robot in front
-      state->velcf2.x = (state->poscf2.x - prevPoscf2.x) * 100 * seqDiff1; //Vicon updates every 100hz
-      state->velcf2.y = (state->poscf2.y - prevPoscf2.y) * 100 * seqDiff1;
-      state->velcf2.z = (state->poscf2.z - prevPoscf2.z) * 100 * seqDiff1;
+      state->velcf2.x = (state->poscf2.x - prevPoscf2.x) * VICON_RATE * seqDiff1; //Vicon updates every 100hz
+      state->velcf2.y = (state->poscf2.y - prevPoscf2.y) * VICON_RATE * seqDiff1;
+      state->velcf2.z = (state->poscf2.z - prevPoscf2.z) * VICON_RATE * seqDiff1;
       prevPoscf2.x = state->poscf2.x;
       prevPoscf2.y = state->poscf2.y;
       prevPoscf2.z = state->poscf2.z;
     }
     
-    uint8_t seqDiff2 = crtpBroadExtPosCache.targetVal.seq2 - prevSeqNum[2];
+    uint8_t seqDiff2 = crtpBroadExtPosCache1.targetVal.seq2 - prevSeqNum[2];
     if(seqDiff2 != 0) {
-      prevSeqNum[2] = crtpBroadExtPosCache.targetVal.seq2;
-      state->poscf3.x = (float)crtpBroadExtPosCache.targetVal.x2 * 0.000125f; // Scale factor, same as dividing by 8000
-      state->poscf3.y = (float)crtpBroadExtPosCache.targetVal.y2 * 0.000125f;
-      state->poscf3.z = (float)crtpBroadExtPosCache.targetVal.z2 * 0.000125f;
+      prevSeqNum[2] = crtpBroadExtPosCache1.targetVal.seq2;
+      state->poscf3.x = (float)crtpBroadExtPosCache1.targetVal.x2 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf3.y = (float)crtpBroadExtPosCache1.targetVal.y2 * 0.000125f;
+      state->poscf3.z = (float)crtpBroadExtPosCache1.targetVal.z2 * 0.000125f;
       //Decentralized controller, estimate velocity of robot in front
-      state->velcf3.x = (state->poscf3.x - prevPoscf3.x) * 100 * seqDiff2; //Vicon updates every 100hz
-      state->velcf3.y = (state->poscf3.y - prevPoscf3.y) * 100 * seqDiff2;
-      state->velcf3.z = (state->poscf3.z - prevPoscf3.z) * 100 * seqDiff2;
+      state->velcf3.x = (state->poscf3.x - prevPoscf3.x) * VICON_RATE * seqDiff2; //Vicon updates every 100hz
+      state->velcf3.y = (state->poscf3.y - prevPoscf3.y) * VICON_RATE * seqDiff2;
+      state->velcf3.z = (state->poscf3.z - prevPoscf3.z) * VICON_RATE * seqDiff2;
       prevPoscf3.x = state->poscf3.x;
       prevPoscf3.y = state->poscf3.y;
       prevPoscf3.z = state->poscf3.z;
     }
     
-    uint8_t seqDiff3 = crtpBroadExtPosCache.targetVal.seq3 - prevSeqNum[3];
+    uint8_t seqDiff3 = crtpBroadExtPosCache1.targetVal.seq3 - prevSeqNum[3];
     if(seqDiff3 != 0) {
-      prevSeqNum[3] = crtpBroadExtPosCache.targetVal.seq3;
-      ext_pos.x = (float)crtpBroadExtPosCache.targetVal.x3 * 0.000125f; // Scale factor, same as dividing by 8000
-      ext_pos.y = (float)crtpBroadExtPosCache.targetVal.y3 * 0.000125f;
-      ext_pos.z = (float)crtpBroadExtPosCache.targetVal.z3 * 0.000125f;
+      prevSeqNum[3] = crtpBroadExtPosCache1.targetVal.seq3;
+      ext_pos.x = (float)crtpBroadExtPosCache1.targetVal.x3 * 0.000125f; // Scale factor, same as dividing by 8000
+      ext_pos.y = (float)crtpBroadExtPosCache1.targetVal.y3 * 0.000125f;
+      ext_pos.z = (float)crtpBroadExtPosCache1.targetVal.z3 * 0.000125f;
       ext_pos.stdDev = 0.01f;
       estimatorKalmanEnqueuePosition(&ext_pos);
       return true;
     }
+#elif CFNUM == 5
+uint8_t seqDiff0 = crtpBroadExtPosCache1.targetVal.seq0 - prevSeqNum[0];
+    if(seqDiff0 != 0) {
+      prevSeqNum[0] = crtpBroadExtPosCache1.targetVal.seq0;
+      state->poscf1.x = (float)crtpBroadExtPosCache1.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf1.y = (float)crtpBroadExtPosCache1.targetVal.y0 * 0.000125f;
+      state->poscf1.z = (float)crtpBroadExtPosCache1.targetVal.z0 * 0.000125f;
+      //Decentralized controller, estimate velocity of leader
+      state->velcf1.x = (state->poscf1.x - prevPoscf1.x) * VICON_RATE * seqDiff0; //Vicon updates every 100hz
+      state->velcf1.y = (state->poscf1.y - prevPoscf1.y) * VICON_RATE * seqDiff0;
+      state->velcf1.z = (state->poscf1.z - prevPoscf1.z) * VICON_RATE * seqDiff0;
+      prevPoscf1.x = state->poscf1.x;
+      prevPoscf1.y = state->poscf1.y;
+      prevPoscf1.z = state->poscf1.z;
+    }
+    
+    uint8_t seqDiff1 = crtpBroadExtPosCache1.targetVal.seq1 - prevSeqNum[1];
+    if(seqDiff1 != 0) {
+      prevSeqNum[1] = crtpBroadExtPosCache1.targetVal.seq1;
+      state->poscf2.x = (float)crtpBroadExtPosCache1.targetVal.x1 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf2.y = (float)crtpBroadExtPosCache1.targetVal.y1 * 0.000125f;
+      state->poscf2.z = (float)crtpBroadExtPosCache1.targetVal.z1 * 0.000125f;
+      //Decentralized controller, estimate velocity of robot in front
+      state->velcf2.x = (state->poscf2.x - prevPoscf2.x) * VICON_RATE * seqDiff1; //Vicon updates every 100hz
+      state->velcf2.y = (state->poscf2.y - prevPoscf2.y) * VICON_RATE * seqDiff1;
+      state->velcf2.z = (state->poscf2.z - prevPoscf2.z) * VICON_RATE * seqDiff1;
+      prevPoscf2.x = state->poscf2.x;
+      prevPoscf2.y = state->poscf2.y;
+      prevPoscf2.z = state->poscf2.z;
+    }
+    
+    uint8_t seqDiff2 = crtpBroadExtPosCache1.targetVal.seq2 - prevSeqNum[2];
+    if(seqDiff2 != 0) {
+      prevSeqNum[2] = crtpBroadExtPosCache1.targetVal.seq2;
+      state->poscf3.x = (float)crtpBroadExtPosCache1.targetVal.x2 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf3.y = (float)crtpBroadExtPosCache1.targetVal.y2 * 0.000125f;
+      state->poscf3.z = (float)crtpBroadExtPosCache1.targetVal.z2 * 0.000125f;
+      //Decentralized controller, estimate velocity of robot in front
+      state->velcf3.x = (state->poscf3.x - prevPoscf3.x) * VICON_RATE * seqDiff2; //Vicon updates every 100hz
+      state->velcf3.y = (state->poscf3.y - prevPoscf3.y) * VICON_RATE * seqDiff2;
+      state->velcf3.z = (state->poscf3.z - prevPoscf3.z) * VICON_RATE * seqDiff2;
+      prevPoscf3.x = state->poscf3.x;
+      prevPoscf3.y = state->poscf3.y;
+      prevPoscf3.z = state->poscf3.z;
+    }
+    
+    uint8_t seqDiff3 = crtpBroadExtPosCache1.targetVal.seq3 - prevSeqNum[3];
+    if(seqDiff3 != 0) {
+      prevSeqNum[3] = crtpBroadExtPosCache1.targetVal.seq3;
+      state->poscf4.x = (float)crtpBroadExtPosCache1.targetVal.x3 * 0.000125f; // Scale factor, same as dividing by 8000
+      state->poscf4.y = (float)crtpBroadExtPosCache1.targetVal.y3 * 0.000125f;
+      state->poscf4.z = (float)crtpBroadExtPosCache1.targetVal.z3 * 0.000125f;
+      //Decentralized controller, estimate velocity of robot in front
+      state->velcf4.x = (state->poscf4.x - prevPoscf4.x) * VICON_RATE * seqDiff3; //Vicon updates every 100hz
+      state->velcf4.y = (state->poscf4.y - prevPoscf4.y) * VICON_RATE * seqDiff3;
+      state->velcf4.z = (state->poscf4.z - prevPoscf4.z) * VICON_RATE * seqDiff3;
+      prevPoscf4.x = state->poscf4.x;
+      prevPoscf4.y = state->poscf4.y;
+      prevPoscf4.z = state->poscf4.z;
+    }
+#endif
+
+#if CFNUM == 5
+  if ((xTaskGetTickCount() - crtpBroadExtPosCache2.timestamp) < M2T(5)) {
+    uint8_t seqDiff4 = crtpBroadExtPosCache2.targetVal.seq0 - prevSeqNum[4];
+    if(seqDiff4 != 0) {
+      prevSeqNum[4] = crtpBroadExtPosCache2.targetVal.seq0;
+      ext_pos.x = (float)crtpBroadExtPosCache2.targetVal.x0 * 0.000125f; // Scale factor, same as dividing by 8000
+      ext_pos.y = (float)crtpBroadExtPosCache2.targetVal.y0 * 0.000125f;
+      ext_pos.z = (float)crtpBroadExtPosCache2.targetVal.z0 * 0.000125f;
+      ext_pos.stdDev = 0.01f;
+      estimatorKalmanEnqueuePosition(&ext_pos);
+      return true;
+    }
+  }
 #endif
   }
   return false;
