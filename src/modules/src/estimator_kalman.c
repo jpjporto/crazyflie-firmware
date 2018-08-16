@@ -222,9 +222,6 @@ static const float stdDevInitialAttitude_yaw = 0.01f;
 
 static float procNoiseAcc_xy = 0.5f;
 static float procNoiseAcc_z = 1.0f;
-static float procNoiseVel = 0.0f;
-static float procNoisePos = 0.0f;
-static float procNoiseAtt = 0.0f;
 static float measNoiseBaro = 2.0f; // meters
 static float measNoiseGyro_rollpitch = 0.1f; // radians per second
 static float measNoiseGyro_yaw = 0.1f; // radians per second
@@ -534,6 +531,8 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
   stateEstimatorAssertNotNaN();
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("O3")
 static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, float dt)
 {
   /* Here we discretize (euler forward) and linearise the quadrocopter dynamics in order
@@ -789,27 +788,28 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
   q[0] = tmpq0/norm; q[1] = tmpq1/norm; q[2] = tmpq2/norm; q[3] = tmpq3/norm;
   stateEstimatorAssertNotNaN();
 }
+#pragma GCC pop_options
 
 static void stateEstimatorAddProcessNoise(float dt)
 {
   if (dt>0)
   {
-    P[STATE_X][STATE_X] += powf(procNoiseAcc_xy*dt*dt + procNoiseVel*dt + procNoisePos, 2);  // add process noise on position
-    P[STATE_Y][STATE_Y] += powf(procNoiseAcc_xy*dt*dt + procNoiseVel*dt + procNoisePos, 2);  // add process noise on position
-    P[STATE_Z][STATE_Z] += powf(procNoiseAcc_z*dt*dt + procNoiseVel*dt + procNoisePos, 2);  // add process noise on position
+    P[STATE_X][STATE_X] += powf(procNoiseAcc_xy*dt*dt, 2);  // add process noise on position
+    P[STATE_Y][STATE_Y] += powf(procNoiseAcc_xy*dt*dt, 2);  // add process noise on position
+    P[STATE_Z][STATE_Z] += powf(procNoiseAcc_z*dt*dt, 2);  // add process noise on position
 
-    P[STATE_PX][STATE_PX] += powf(procNoiseAcc_xy*dt + procNoiseVel, 2); // add process noise on velocity
-    P[STATE_PY][STATE_PY] += powf(procNoiseAcc_xy*dt + procNoiseVel, 2); // add process noise on velocity
-    P[STATE_PZ][STATE_PZ] += powf(procNoiseAcc_z*dt + procNoiseVel, 2); // add process noise on velocity
+    P[STATE_PX][STATE_PX] += powf(procNoiseAcc_xy*dt, 2); // add process noise on velocity
+    P[STATE_PY][STATE_PY] += powf(procNoiseAcc_xy*dt, 2); // add process noise on velocity
+    P[STATE_PZ][STATE_PZ] += powf(procNoiseAcc_z*dt, 2); // add process noise on velocity
 
-    P[STATE_D0][STATE_D0] += powf(measNoiseGyro_rollpitch * dt + procNoiseAtt, 2);
-    P[STATE_D1][STATE_D1] += powf(measNoiseGyro_rollpitch * dt + procNoiseAtt, 2);
-    P[STATE_D2][STATE_D2] += powf(measNoiseGyro_yaw * dt + procNoiseAtt, 2);
+    P[STATE_D0][STATE_D0] += powf(measNoiseGyro_rollpitch * dt, 2);
+    P[STATE_D1][STATE_D1] += powf(measNoiseGyro_rollpitch * dt, 2);
+    P[STATE_D2][STATE_D2] += powf(measNoiseGyro_yaw * dt, 2);
   }
 
   for (int i=0; i<STATE_DIM; i++) {
     for (int j=i; j<STATE_DIM; j++) {
-      float p = 0.5f*P[i][j] + 0.5f*P[j][i];
+      float p = (P[i][j] + P[j][i])/2;
       if (isnan(p) || p > MAX_COVARIANCE) {
         P[i][j] = P[j][i] = MAX_COVARIANCE;
       } else if ( i==j && p < MIN_COVARIANCE ) {
@@ -823,7 +823,8 @@ static void stateEstimatorAddProcessNoise(float dt)
   stateEstimatorAssertNotNaN();
 }
 
-
+#pragma GCC push_options
+#pragma GCC optimize ("O3")
 static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error, float stdMeasNoise)
 {
   // The Kalman gain as a column vector
@@ -914,7 +915,7 @@ static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error,
   for (int i=0; i<STATE_DIM; i++) {
     for (int j=i; j<STATE_DIM; j++) {
       float v = K[i] * R * K[j];
-      float p = 0.5f*P[i][j] + 0.5f*P[j][i] + v; // add measurement noise
+      float p = 0.5f*(P[i][j] + P[j][i]) + v; // add measurement noise
       if (isnan(p) || p > MAX_COVARIANCE) {
         P[i][j] = P[j][i] = MAX_COVARIANCE;
       } else if ( i==j && p < MIN_COVARIANCE ) {
@@ -927,6 +928,7 @@ static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error,
 
   stateEstimatorAssertNotNaN();
 }
+#pragma GCC pop_options
 
 static void stateEstimatorUpdateWithAccOnGround(Axis3f *acc)
 {
@@ -1165,7 +1167,8 @@ static void stateEstimatorUpdateWithTof(tofMeasurement_t *tof)
   }
 }
 */
-
+#pragma GCC push_options
+#pragma GCC optimize ("O3")
 static void stateEstimatorFinalize(sensorData_t *sensors, uint32_t tick)
 {
   // Matrix to rotate the attitude covariances once updated
@@ -1264,19 +1267,32 @@ static void stateEstimatorFinalize(sensorData_t *sensors, uint32_t tick)
   S[STATE_D2] = 0;
 
   // constrain the states
-  for (int i=0; i<3; i++)
+  /*for (int i=0; i<3; i++)
   {
     if (S[STATE_X+i] < -MAX_POSITION) { S[STATE_X+i] = -MAX_POSITION; }
     else if (S[STATE_X+i] > MAX_POSITION) { S[STATE_X+i] = MAX_POSITION; }
 
     if (S[STATE_PX+i] < -MAX_VELOCITY) { S[STATE_PX+i] = -MAX_VELOCITY; }
     else if (S[STATE_PX+i] > MAX_VELOCITY) { S[STATE_PX+i] = MAX_VELOCITY; }
-  }
+  }*/
+  if (S[STATE_X] < -MAX_POSITION) { S[STATE_X] = -MAX_POSITION; }
+  else if (S[STATE_X] > MAX_POSITION) { S[STATE_X] = MAX_POSITION; }
+  if (S[STATE_Y] < -MAX_POSITION) { S[STATE_Y] = -MAX_POSITION; }
+  else if (S[STATE_Y] > MAX_POSITION) { S[STATE_Y] = MAX_POSITION; }
+  if (S[STATE_Z] < -MAX_POSITION) { S[STATE_Z] = -MAX_POSITION; }
+  else if (S[STATE_Z] > MAX_POSITION) { S[STATE_Z] = MAX_POSITION; }
+  
+  if (S[STATE_PX] < -MAX_VELOCITY) { S[STATE_PX] = -MAX_VELOCITY; }
+  else if (S[STATE_PX] > MAX_VELOCITY) { S[STATE_PX] = MAX_VELOCITY; }
+  if (S[STATE_PY] < -MAX_VELOCITY) { S[STATE_PY] = -MAX_VELOCITY; }
+  else if (S[STATE_PY] > MAX_VELOCITY) { S[STATE_PY] = MAX_VELOCITY; }
+  if (S[STATE_PZ] < -MAX_VELOCITY) { S[STATE_PZ] = -MAX_VELOCITY; }
+  else if (S[STATE_PZ] > MAX_VELOCITY) { S[STATE_PZ] = MAX_VELOCITY; }
 
   // enforce symmetry of the covariance matrix, and ensure the values stay bounded
   for (int i=0; i<STATE_DIM; i++) {
     for (int j=i; j<STATE_DIM; j++) {
-      float p = 0.5f*P[i][j] + 0.5f*P[j][i];
+      float p = (P[i][j] + P[j][i])/2;
       if (isnan(p) || p > MAX_COVARIANCE) {
         P[i][j] = P[j][i] = MAX_COVARIANCE;
       } else if ( i==j && p < MIN_COVARIANCE ) {
@@ -1290,12 +1306,14 @@ static void stateEstimatorFinalize(sensorData_t *sensors, uint32_t tick)
   stateEstimatorAssertNotNaN();
 }
 
+
 static inline float fast_atan2(float y, float x)
 {
     float z = y/x;
     float zabs = fabsf(z);
     return 0.7853982f*z - z*(zabs - 1)*(0.2443461f + 0.0668461f*zabs);
 }
+#pragma GCC pop_options
 
 static void stateEstimatorExternalizeState(state_t *state, sensorData_t *sensors, uint32_t tick)
 {
@@ -1580,9 +1598,6 @@ PARAM_GROUP_START(kalman)
   PARAM_ADD(PARAM_UINT8, quadIsFlying, &quadIsFlying)
   PARAM_ADD(PARAM_FLOAT, pNAcc_xy, &procNoiseAcc_xy)
   PARAM_ADD(PARAM_FLOAT, pNAcc_z, &procNoiseAcc_z)
-  PARAM_ADD(PARAM_FLOAT, pNVel, &procNoiseVel)
-  PARAM_ADD(PARAM_FLOAT, pNPos, &procNoisePos)
-  PARAM_ADD(PARAM_FLOAT, pNAtt, &procNoiseAtt)
   PARAM_ADD(PARAM_FLOAT, pNSkew, &procNoiseSkew)
   PARAM_ADD(PARAM_FLOAT, mNBaro, &measNoiseBaro)
   PARAM_ADD(PARAM_FLOAT, mNGyro_rollpitch, &measNoiseGyro_rollpitch)

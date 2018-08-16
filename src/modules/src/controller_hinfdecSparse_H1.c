@@ -168,7 +168,7 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
     e[5] = (setpoint->velcf1.z - state->velocity.z);
     e[6] = (0.0f - state->attitude.roll);
     e[7] = (0.0f - state->attitude.pitch);
-    e[8] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[8] = (0.0f - state->attitude.yaw); 
     e[9] = (0.0f - state->attitudeRate.roll);
     e[10] = (0.0f - state->attitudeRate.pitch);
     e[11] = (0.0f - state->attitudeRate.yaw);
@@ -193,7 +193,7 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
     e[17] = (state->velcf1.z - state->velocity.z);
     e[18] = (0.0f - state->attitude.roll); // for angles, ref and eps will always equal 0
     e[19] = (0.0f - state->attitude.pitch);
-    e[20] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[20] = (0.0f - state->attitude.yaw); 
     e[21] = (0.0f - state->attitudeRate.roll);
     e[22] = (0.0f - state->attitudeRate.pitch);
     e[23] = (0.0f - state->attitudeRate.yaw);
@@ -230,7 +230,7 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
     e[29] = (state->velcf2.z - state->velocity.z);
     e[30] = (0.0f - state->attitude.roll); // for angles, ref and eps will always equal 0
     e[31] = (0.0f - state->attitude.pitch);
-    e[32] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[32] = (0.0f - state->attitude.yaw); 
     e[33] = (0.0f - state->attitudeRate.roll);
     e[34] = (0.0f - state->attitudeRate.pitch);
     e[35] = (0.0f - state->attitudeRate.yaw);
@@ -279,7 +279,7 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
     e[41] = (state->velcf3.z - state->velocity.z);
     e[42] = (0.0f - state->attitude.roll); // for angles, ref and eps will always equal 0
     e[43] = (0.0f - state->attitude.pitch);
-    e[44] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[44] = (0.0f - state->attitude.yaw); 
     e[45] = (0.0f - state->attitudeRate.roll);
     e[46] = (0.0f - state->attitudeRate.pitch);
     e[47] = (0.0f - state->attitudeRate.yaw);
@@ -340,7 +340,7 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
     e[53] = (state->velcf4.z - state->velocity.z);
     e[54] = (0.0f - state->attitude.roll); // for angles, ref and eps will always equal 0
     e[55] = (0.0f - state->attitude.pitch);
-    e[56] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[56] = (0.0f - state->attitude.yaw); 
     e[57] = (0.0f - state->attitudeRate.roll);
     e[58] = (0.0f - state->attitudeRate.pitch);
     e[59] = (0.0f - state->attitudeRate.yaw);

@@ -131,6 +131,20 @@ static lpsAlgoOptions_t algoOptions = {
   // To set a static anchor position from startup, uncomment and modify the
   // following code:
   .anchorPosition = {
+    {timestamp: 1, x: 4.495, y: 0.600, z: 2.395},
+    {timestamp: 1, x: 0.155, y: 0.190, z: 2.398},
+    {timestamp: 1, x: 4.498, y: 4.342, z: 2.385},
+    {timestamp: 1, x: 0.155, y: 4.245, z: 2.392},
+    {timestamp: 1, x: 4.498, y: 0.670, z: 0.390},
+    {timestamp: 1, x: 0.159, y: 0.780, z: 0.385},
+#if LOCODECK_NR_OF_ANCHORS > 6
+    {timestamp: 1, x: 4.500, y: 4.332, z: 0.395},
+#endif
+#if LOCODECK_NR_OF_ANCHORS > 7
+    {timestamp: 1, x: 0.159, y: 4.365, z: 0.390},
+#endif
+   },
+/*  .anchorPosition = {
     {timestamp: 1, x: 4.495, y: 0.600, z: 2.195},
     {timestamp: 1, x: 0.155, y: 0.190, z: 2.198},
     {timestamp: 1, x: 4.498, y: 4.342, z: 2.185},
@@ -143,7 +157,7 @@ static lpsAlgoOptions_t algoOptions = {
 #if LOCODECK_NR_OF_ANCHORS > 7
     {timestamp: 1, x: 0.159, y: 4.365, z: 0.190},
 #endif
-   },
+   },*/
 /*     .anchorPosition = {
     {timestamp: 1, x: 8.25 , y: 0.155, z: 3.312},
     {timestamp: 1, x: 0.155, y: 2.023, z: 3.208},
@@ -208,6 +222,7 @@ static void rxTimeoutCallback(dwDevice_t * dev) {
 //   timeout = algorithm->onEvent(dev, eventReceiveFailed);
 // }
 
+#ifndef NO_DECA
 static void updateTagTdmaSlot(lpsAlgoOptions_t * options)
 {
   if (options->tdmaSlot < 0) {
@@ -299,6 +314,7 @@ static void uwbTask(void* parameters)
     }
   }
 }
+#endif
 
 static lpsLppShortPacket_t lppShortPacket;
 
@@ -474,8 +490,10 @@ static void dwm1000Init(DeckInfo *info)
 
   vSemaphoreCreateBinary(irqSemaphore);
 
+#ifndef NO_DECA
   xTaskCreate(uwbTask, "lps", 3*configMINIMAL_STACK_SIZE, NULL,
                     5/*priority*/, NULL);
+#endif
 
   isInit = true;
 }

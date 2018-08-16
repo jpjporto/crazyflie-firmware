@@ -39,8 +39,14 @@ typedef struct {
 } __attribute__((packed)) lpsCFStatePacket_t;
 
 void setCFState(const state_t *state);
-#endif
+void getDecState(state_t *state);
 
 #define LPP_STATE_PACKET 0xAA
+#define PACKET_TYPE_RANGE 0x21
+
+#define STATE_TX_DLY	(1ull<<26)  // About 0.250 ms
+
+#endif
+
 
 #endif // __LPS_TDOA_TAGV2_H__

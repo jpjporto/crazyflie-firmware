@@ -77,10 +77,13 @@ void stabilizerInit(StateEstimatorType estimator)
   stateControllerInit();
 #endif
   powerDistributionInit();
+  
+#if defined(CONTROLLER_TYPE_pid) || defined(CONTROLLER_TYPE_mellinger)
   if (estimator == kalmanEstimator)
   {
     sitAwInit();
   }
+#endif
 
   xTaskCreate(stabilizerTask, STABILIZER_TASK_NAME,
               STABILIZER_TASK_STACKSIZE, NULL, STABILIZER_TASK_PRI, NULL);
@@ -102,6 +105,7 @@ bool stabilizerTest(void)
   return pass;
 }
 
+#if defined(CONTROLLER_TYPE_pid) || defined(CONTROLLER_TYPE_mellinger)
 static void checkEmergencyStopTimeout()
 {
   if (emergencyStopTimeout >= 0) {
@@ -112,6 +116,7 @@ static void checkEmergencyStopTimeout()
     }
   }
 }
+#endif
 
 /* The stabilizer loop runs at 1kHz (stock) or 500Hz (kalman). It is the
  * responsibility of the different functions to run slower by skipping call
@@ -140,6 +145,11 @@ static void stabilizerTask(void* param)
 
     getExtPosition(&state);
     stateEstimator(&state, &sensorData, &control, tick);
+    
+    #ifdef DEC_DECA
+    setCFState(&state);
+    getDecState(&state);
+    #endif
 
 #if !defined(CONTROLLER_TYPE_pid) && !defined(CONTROLLER_TYPE_mellinger)
     getSetpoint(&setpoint);
@@ -161,6 +171,7 @@ static void stabilizerTask(void* param)
 
     if (RATE_DO_EXECUTE(HINF_RATE, tick))
     {
+#if defined(CONTROLLER_TYPE_pid) || defined(CONTROLLER_TYPE_mellinger)    
       checkEmergencyStopTimeout();
 
       if (emergencyStop) {
@@ -168,11 +179,10 @@ static void stabilizerTask(void* param)
       } else {
         powerDistribution(&control);
       }
+#else
+      powerDistribution(&control);
+#endif
     }
-    
-    #ifdef DEC_DECA
-    setCFState(&state);
-    #endif
 
     tick++;
   }
@@ -286,3 +296,13 @@ LOG_ADD(LOG_FLOAT, x, &state.position.x)
 LOG_ADD(LOG_FLOAT, y, &state.position.y)
 LOG_ADD(LOG_FLOAT, z, &state.position.z)
 LOG_GROUP_STOP(stateEstimate)
+
+#ifdef DEC_DECA
+#if CFNUM >= 2
+LOG_GROUP_START(DecState)
+LOG_ADD(LOG_FLOAT, x, &state.s_dec[0])
+LOG_ADD(LOG_FLOAT, y, &state.s_dec[1])
+LOG_ADD(LOG_FLOAT, z, &state.s_dec[2])
+LOG_GROUP_STOP(DecState)
+#endif
+#endif

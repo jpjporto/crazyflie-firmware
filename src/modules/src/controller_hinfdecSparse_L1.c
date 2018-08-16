@@ -17,7 +17,6 @@
 
 static bool isInit = false;
 
-#define HINF_STATES 80
 static float xHinf[HINF_STATES * CFNUM];
 static float e[12 * CFNUM];
 static float u[4];
@@ -158,6 +157,7 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
   
   if (RATE_DO_EXECUTE(HINF_RATE, tick) && (control->enabled)) 
   {
+#ifndef DEC_DECA
 #if CFNUM==1
     e[0] = (setpoint->poscf1.x - state->position.x);
     e[1] = (setpoint->poscf1.y - state->position.y);
@@ -339,10 +339,51 @@ void hinfController(control_t *control, setpoint_t *setpoint, const state_t *sta
     e[53] = (state->velcf4.z - state->velocity.z);
     e[54] = (0.0f - state->attitude.roll); // for angles, ref and eps will always equal 0
     e[55] = (0.0f - state->attitude.pitch);
-    e[56] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[56] = (0.0f - state->attitude.yaw); 
     e[57] = (0.0f - state->attitudeRate.roll);
     e[58] = (0.0f - state->attitudeRate.pitch);
     e[59] = (0.0f - state->attitudeRate.yaw);
+#endif
+#else
+#if CFNUM==1
+    e[0] = (setpoint->poscf1.x - state->position.x);
+    e[1] = (setpoint->poscf1.y - state->position.y);
+    e[2] = (setpoint->poscf1.z - state->position.z);
+    e[3] = (setpoint->velcf1.x - state->velocity.x);
+    e[4] = (setpoint->velcf1.y - state->velocity.y);
+    e[5] = (setpoint->velcf1.z - state->velocity.z);
+    e[6] = (0.0f - state->attitude.roll);
+    e[7] = (0.0f - state->attitude.pitch);
+    e[8] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[9] = (0.0f - state->attitudeRate.roll);
+    e[10] = (0.0f - state->attitudeRate.pitch);
+    e[11] = (0.0f - state->attitudeRate.yaw);
+#elif CFNUM==2
+    e[0] = (setpoint->poscf1.x - state->s_dec[0]);
+    e[1] = (setpoint->poscf1.y - state->s_dec[1]);
+    e[2] = (setpoint->poscf1.z - state->s_dec[2]);
+    e[3] = (setpoint->velcf1.x - state->s_dec[3]);
+    e[4] = (setpoint->velcf1.y - state->s_dec[4]);
+    e[5] = (setpoint->velcf1.z - state->s_dec[5]);
+    e[6] = (0.0f - state->s_dec[6]);
+    e[7] = (0.0f - state->s_dec[7]);
+    e[8] = (0.0f - state->s_dec[8]); 
+    e[9] = (0.0f - state->s_dec[9]);
+    e[10] = (0.0f - state->s_dec[10]);
+    e[11] = (0.0f - state->s_dec[11]);
+    e[12] = (setpoint->poscf2.x + state->s_dec[0] - state->position.x); //ref + eps - pos
+    e[13] = (setpoint->poscf2.y + state->s_dec[1] - state->position.y);
+    e[14] = (state->s_dec[2] - state->position.z);
+    e[15] = (setpoint->velcf2.x + state->s_dec[3] - state->velocity.x);
+    e[16] = (setpoint->velcf2.y + state->s_dec[4] - state->velocity.y);
+    e[17] = (state->s_dec[5] - state->velocity.z);
+    e[18] = (state->s_dec[6] - state->attitude.roll); // for angles, ref and eps will always equal 0
+    e[19] = (state->s_dec[7] - state->attitude.pitch);
+    e[20] = (setpoint->attitude.yaw + state->s_dec[8] - state->attitude.yaw); 
+    e[21] = (state->s_dec[9] - state->attitudeRate.roll);
+    e[22] = (state->s_dec[10] - state->attitudeRate.pitch);
+    e[23] = (state->s_dec[11] - state->attitudeRate.yaw);
+#endif
 #endif
     
     seq_num = seq_calc(setpoint);

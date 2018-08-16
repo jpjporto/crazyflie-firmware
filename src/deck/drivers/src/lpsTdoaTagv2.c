@@ -61,11 +61,13 @@ static uint32_t statsReceivedPackets = 0;
 static uint32_t statsRejectedSeq = 0;
 static uint32_t statsAcceptedPackets = 0;
 static uint16_t statsRecv[LOCODECK_NR_OF_ANCHORS];
+static uint16_t statsDecRecv = 0;
 
 static bool rangingOk;
 static uint32_t anchorStatusTimeout[LOCODECK_NR_OF_ANCHORS];
 
 #ifdef DEC_DECA
+static dwTime_t last_rx = {.full = 0};
 static packet_t txPacket;
 void setCFState(const state_t *state)
 {
@@ -85,7 +87,18 @@ void setCFState(const state_t *state)
   statePacket->cfstate_s.vyaw = state->attitudeRate.yaw;
 }
 
-static void sendCFState(dwDevice_t *dev, lpsCFStatePacket_t *packet)
+#if CFNUM >= 2
+float stemp[12 * (CFNUM-1)];
+#endif
+
+void getDecState(state_t *state)
+{
+    #if CFNUM >= 2
+    memcpy(state->s_dec, stemp, 4*12*(CFNUM-1));
+    #endif
+}
+
+static void sendCFState(dwDevice_t *dev)
 {
   static uint8_t firstEntry = 1;
   dwIdle(dev);
@@ -98,11 +111,17 @@ static void sendCFState(dwDevice_t *dev, lpsCFStatePacket_t *packet)
     txPacket.destAddress = 0xbccf0000000000FF;
     
     txPacket.payload[0] = LPP_STATE_PACKET;
+    txPacket.payload[1] = CFNUM;
+    firstEntry = 0;
   }
+  
+  dwTime_t txTime = last_rx;
+  txTime.full += STATE_TX_DLY;
   
   dwNewTransmit(dev);
   dwSetDefaults(dev);
   dwSetData(dev, (uint8_t*)&txPacket, MAC802154_HEADER_LENGTH+sizeof(lpsCFStatePacket_t));
+  dwSetTxRxTime(dev, txTime);
 
   dwWaitForResponse(dev, true);
   dwStartTransmit(dev);
@@ -224,7 +243,12 @@ static void addToLog(const uint8_t anchor, const float tdoaDistDiff, const range
 // A note on variable names. They might seem a bit verbose but express quite a lot of information
 // We have three actors: Reference anchor (Ar), Anchor n (An) and the deck on the CF called Tag (T)
 // rxAr_by_An_in_cl_An should be interpreted as "The time when packet was received from the Reference Anchor by Anchor N expressed in the clock of Anchor N"
-static void rxcallback(dwDevice_t *dev) {
+#ifdef DEC_DECA
+static bool rxcallback(dwDevice_t *dev)
+#else
+static void rxcallback(dwDevice_t *dev)
+#endif
+{
   statsReceivedPackets++;
 
   int dataLength = dwGetDataLength(dev);
@@ -232,13 +256,14 @@ static void rxcallback(dwDevice_t *dev) {
 
   dwGetData(dev, (uint8_t*)&rxPacket, dataLength);
 
-  dwTime_t arrival = {.full = 0};
-  dwGetReceiveTimestamp(dev, &arrival);
-
-  const uint8_t anchor = rxPacket.sourceAddress & 0xFF;
-  
-  if (anchor < 8)
+#ifdef DEC_DECA
+  if (rxPacket.payload[0] == PACKET_TYPE_RANGE)
   {
+#endif
+    dwTime_t arrival = {.full = 0};
+    dwGetReceiveTimestamp(dev, &arrival);
+    const uint8_t anchor = rxPacket.sourceAddress & 0xFF;
+    
     const rangePacket_t* packet = (rangePacket_t*)rxPacket.payload;
     statsRecv[anchor]++;
     
@@ -264,7 +289,29 @@ static void rxcallback(dwDevice_t *dev) {
     anchorStatusTimeout[anchor] = xTaskGetTickCount() + ANCHOR_OK_TIMEOUT;
 
     previousAnchor = anchor;
+#ifdef DEC_DECA
+    // Broadcast position between anchor messages
+    if ((anchor == CFNUM-1) || (anchor == CFNUM+3)) //This allows up to 4 cfs
+    {
+      dwGetReceiveTimestamp(dev, &last_rx);
+      return true;
+    }
   }
+  else if (rxPacket.payload[0] == LPP_STATE_PACKET)
+  {
+    #if CFNUM >= 2
+    if (rxPacket.payload[1] < CFNUM)
+    {
+      // Got a valid package, save state info
+      const lpsCFStatePacket_t* packet = (lpsCFStatePacket_t*)rxPacket.payload;
+    
+      memcpy(&stemp[(packet->source-1)*12], packet->data, 4*12);
+      statsDecRecv++;
+    }
+    #endif
+  }
+  return false;
+#endif
 }
 
 static void setRadioInReceiveMode(dwDevice_t *dev) {
@@ -276,8 +323,19 @@ static void setRadioInReceiveMode(dwDevice_t *dev) {
 static uint32_t onEvent(dwDevice_t *dev, uwbEvent_t event) {
   switch(event) {
     case eventPacketReceived:
+#ifdef DEC_DECA
+      if(rxcallback(dev))
+      {
+        sendCFState(dev);
+      }
+      else
+      {
+        setRadioInReceiveMode(dev);
+      }
+#else
       rxcallback(dev);
       setRadioInReceiveMode(dev);
+#endif
       break;
     case eventTimeout:
       setRadioInReceiveMode(dev);
@@ -285,6 +343,11 @@ static uint32_t onEvent(dwDevice_t *dev, uwbEvent_t event) {
     case eventReceiveTimeout:
       setRadioInReceiveMode(dev);
       break;
+#ifdef DEC_DECA
+    case eventPacketSent:
+      setRadioInReceiveMode(dev);
+      break;
+#endif
     default:
       ASSERT_FAILED();
   }
@@ -380,4 +443,5 @@ LOG_ADD(LOG_UINT16, recv5, &statsRecv[5])
 LOG_ADD(LOG_UINT16, recv6, &statsRecv[6])
 LOG_ADD(LOG_UINT16, recv7, &statsRecv[7])
 
+LOG_ADD(LOG_UINT16, recvDec, &statsDecRecv)
 LOG_GROUP_STOP(tdoa)

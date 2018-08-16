@@ -151,6 +151,12 @@ typedef struct state_s {
   velocity_t velcf3;
   velocity_t velcf4;
 #endif
+
+#ifdef DEC_DECA
+  #if CFNUM >= 2
+  float s_dec[12 * (CFNUM-1)];
+  #endif
+#endif
 } state_t;
 
 typedef struct control_s {
