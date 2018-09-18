@@ -44,7 +44,9 @@ void getDecState(state_t *state);
 #define LPP_STATE_PACKET 0xAA
 #define PACKET_TYPE_RANGE 0x21
 
-#define STATE_TX_DLY	(1ull<<26)  // About 0.250 ms
+#define STATE_TX_DLY	(1ull<<26)  // About 1 ms
+#define STATE_TX_DLY1	(1ull<<25)  // About 0.5 ms, first slot
+#define STATE_TX_DLY2	(5ull<<24)  // About 1.25 ms, second slot
 
 #endif
 

@@ -744,13 +744,6 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
     S[STATE_PZ] += dt * (acc->z + gyro->y * tmpSPX - gyro->x * tmpSPY - GRAVITY_MAGNITUDE * R[2][2]);
   }
 
-  if(S[STATE_Z] < 0) {
-    S[STATE_Z] = 0;
-    S[STATE_PX] = 0;
-    S[STATE_PY] = 0;
-    S[STATE_PZ] = 0;
-  }
-
   // attitude update (rotate by gyroscope), we do this in quaternions
   // this is the gyroscope angular velocity integrated over the sample period
   float dtwx = dt*gyro->x;
@@ -847,13 +840,13 @@ static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error,
   static float PHTd[STATE_DIM * 1];
   static arm_matrix_instance_f32 PHTm = {STATE_DIM, 1, PHTd};
 
-  configASSERT(Hm->numRows == 1);
-  configASSERT(Hm->numCols == STATE_DIM);
+  //configASSERT(Hm->numRows == 1);
+  //configASSERT(Hm->numCols == STATE_DIM);
 
   // ====== INNOVATION COVARIANCE ======
 
-  mat_trans(Hm, &HTm);
-  mat_mult(&Pm, &HTm, &PHTm); // PH'
+  arm_mat_trans_f32(Hm, &HTm);
+  arm_mat_mult_f32(&Pm, &HTm, &PHTm); // PH'
   float R = stdMeasNoise*stdMeasNoise;
   float HPHR = R; // HPH' + R
   //for (int i=0; i<STATE_DIM; i++) { // Add the element of HPH' to the above
@@ -893,7 +886,7 @@ static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error,
   in1 = Hm->pData[8];
   HPHR += in1 * in3; // 9 states
   
-  configASSERT(!isnan(HPHR));
+  //configASSERT(!isnan(HPHR));
 
   // ====== MEASUREMENT UPDATE ======
   // Calculate the Kalman gain and perform the state update
@@ -904,11 +897,11 @@ static void stateEstimatorScalarUpdate(arm_matrix_instance_f32 *Hm, float error,
   stateEstimatorAssertNotNaN();
 
   // ====== COVARIANCE UPDATE ======
-  mat_mult(&Km, Hm, &tmpNN1m); // KH
+  arm_mat_mult_f32(&Km, Hm, &tmpNN1m); // KH
   for (int i=0; i<STATE_DIM; i++) { tmpNN1d[STATE_DIM*i+i] -= 1; } // KH - I
-  mat_trans(&tmpNN1m, &tmpNN2m); // (KH - I)'
-  mat_mult(&tmpNN1m, &Pm, &tmpNN3m); // (KH - I)*P
-  mat_mult(&tmpNN3m, &tmpNN2m, &Pm); // (KH - I)*P*(KH - I)'
+  arm_mat_trans_f32(&tmpNN1m, &tmpNN2m); // (KH - I)'
+  arm_mat_mult_f32(&tmpNN1m, &Pm, &tmpNN3m); // (KH - I)*P
+  arm_mat_mult_f32(&tmpNN3m, &tmpNN2m, &Pm); // (KH - I)*P*(KH - I)'
   stateEstimatorAssertNotNaN();
   // add the measurement variance and ensure boundedness and symmetry
   // TODO: Why would it hit these bounds? Needs to be investigated.
@@ -1019,6 +1012,8 @@ static void stateEstimatorUpdateWithDistance(distanceMeasurement_t *d)
 }
 */
 
+#pragma GCC push_options
+#pragma GCC optimize ("O3")
 static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
 {
   /**
@@ -1044,7 +1039,7 @@ static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
 
   if (tdoaCount >= 100)
   {
-    if ((tdoaCount > 1000) && (fabsf(error) < 1.0f))
+    if ((tdoaCount < 5000) || (fabsf(error) < 1.0f))
     {
       float h[STATE_DIM] = {0};
       arm_matrix_instance_f32 H = {1, STATE_DIM, h};
@@ -1059,6 +1054,7 @@ static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
 
   tdoaCount++;
 }
+#pragma GCC pop_options
 
 /*
 // TODO remove the temporary test variables (used for logging)
@@ -1426,8 +1422,8 @@ void estimatorKalmanInit(void) {
   memset(P, 0, sizeof(S));
 
   // TODO: Can we initialize this more intelligently?
-  S[STATE_X] = 2.5;//0.5;
-  S[STATE_Y] = 2.0;//0.5;
+  S[STATE_X] = 5.0;//0.5;
+  S[STATE_Y] = 5.0;//0.5;
   S[STATE_Z] = 0;
   S[STATE_PX] = 0;
   S[STATE_PY] = 0;

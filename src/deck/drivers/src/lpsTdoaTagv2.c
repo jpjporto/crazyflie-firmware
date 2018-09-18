@@ -42,26 +42,30 @@
 #define ANCHOR_OK_TIMEOUT 1500
 #define TDOA_RECEIVE_TIMEOUT 10000
 
+//#define DECA_DEBUG
+
 static lpsAlgoOptions_t* options;
 
-static float uwbTdoaDistDiff[LOCODECK_NR_OF_ANCHORS];
+#ifdef DECA_DEBUG
 static uint16_t anchorDistanceLog[LOCODECK_NR_OF_ANCHORS];
 static float clockCorrectionLog[LOCODECK_NR_OF_ANCHORS];
-
-static uint8_t previousAnchor;
-static rangePacket_t rxPacketBuffer[LOCODECK_NR_OF_ANCHORS];
-static dwTime_t arrivals[LOCODECK_NR_OF_ANCHORS];
-static uint8_t sequenceNrs[LOCODECK_NR_OF_ANCHORS];
-
-static double clockCorrection_T_To_A[LOCODECK_NR_OF_ANCHORS];
-
-#define MEASUREMENT_NOISE_STD 0.15f
 
 static uint32_t statsReceivedPackets = 0;
 static uint32_t statsRejectedSeq = 0;
 static uint32_t statsAcceptedPackets = 0;
 static uint16_t statsRecv[LOCODECK_NR_OF_ANCHORS];
 static uint16_t statsDecRecv = 0;
+#endif
+
+static uint8_t previousAnchor;
+static rangePacket_t rxPacketBuffer[LOCODECK_NR_OF_ANCHORS];
+static dwTime_t arrivals[LOCODECK_NR_OF_ANCHORS];
+static uint8_t sequenceNrs[LOCODECK_NR_OF_ANCHORS];
+
+static float uwbTdoaDistDiff[LOCODECK_NR_OF_ANCHORS];
+static double clockCorrection_T_To_A[LOCODECK_NR_OF_ANCHORS];
+
+#define MEASUREMENT_NOISE_STD 0.15f
 
 static bool rangingOk;
 static uint32_t anchorStatusTimeout[LOCODECK_NR_OF_ANCHORS];
@@ -169,9 +173,13 @@ static bool isSameFrame(const uint8_t Ar, const uint8_t An, const uint8_t packet
     }
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("O3")
 static bool calcClockCorrection(double* clockCorrection, const uint8_t anchor, const rangePacket_t* packet, const dwTime_t* arrival) {
   if (! isSeqNrConsecutive(rxPacketBuffer[anchor].Idx, packet->Idx)) {
+    #ifdef DECA_DEBUG
     statsRejectedSeq++;
+    #endif
     return false;
   }
 
@@ -230,7 +238,9 @@ static bool calcDistanceDiff(float* tdoaDistDiff, const uint8_t previousAnchor, 
 
   return true;
 }
+#pragma GCC pop_options
 
+#ifdef DECA_DEBUG
 static void addToLog(const uint8_t anchor, const float tdoaDistDiff, const rangePacket_t* packet) {
   // Only store diffs for anchors with succeeding numbers. In case of packet
   // loss we can get ranging between any anchors and that messes up the graphs.
@@ -239,6 +249,7 @@ static void addToLog(const uint8_t anchor, const float tdoaDistDiff, const range
     anchorDistanceLog[anchor] = packet->distances[previousAnchor];
   }
 }
+#endif
 
 // A note on variable names. They might seem a bit verbose but express quite a lot of information
 // We have three actors: Reference anchor (Ar), Anchor n (An) and the deck on the CF called Tag (T)
@@ -249,7 +260,9 @@ static bool rxcallback(dwDevice_t *dev)
 static void rxcallback(dwDevice_t *dev)
 #endif
 {
+  #ifdef DECA_DEBUG
   statsReceivedPackets++;
+  #endif
 
   int dataLength = dwGetDataLength(dev);
   packet_t rxPacket;
@@ -265,10 +278,14 @@ static void rxcallback(dwDevice_t *dev)
     const uint8_t anchor = rxPacket.sourceAddress & 0xFF;
     
     const rangePacket_t* packet = (rangePacket_t*)rxPacket.payload;
+    #ifdef DECA_DEBUG
     statsRecv[anchor]++;
+    #endif
     
     calcClockCorrection(&clockCorrection_T_To_A[anchor], anchor, packet, &arrival);
+    #ifdef DECA_DEBUG
     clockCorrectionLog[anchor] = clockCorrection_T_To_A[anchor];
+    #endif
 
     if (anchor != previousAnchor) 
     {
@@ -276,9 +293,11 @@ static void rxcallback(dwDevice_t *dev)
       if (calcDistanceDiff(&tdoaDistDiff, previousAnchor, anchor, packet, &arrival)) 
       {
         enqueueTDOA(previousAnchor, anchor, tdoaDistDiff);
+        #ifdef DECA_DEBUG
         addToLog(anchor, tdoaDistDiff, packet);
 
         statsAcceptedPackets++;
+        #endif
       }
     }
 
@@ -291,7 +310,7 @@ static void rxcallback(dwDevice_t *dev)
     previousAnchor = anchor;
 #ifdef DEC_DECA
     // Broadcast position between anchor messages
-    if ((anchor == CFNUM-1) || (anchor == CFNUM+3)) //This allows up to 4 cfs
+    if ((anchor == CFNUM-1) || (anchor == CFNUM+3)) //This allows up to 4 cfs to send pos
     {
       dwGetReceiveTimestamp(dev, &last_rx);
       return true;
@@ -306,7 +325,9 @@ static void rxcallback(dwDevice_t *dev)
       const lpsCFStatePacket_t* packet = (lpsCFStatePacket_t*)rxPacket.payload;
     
       memcpy(&stemp[(packet->source-1)*12], packet->data, 4*12);
+      #ifdef DECA_DEBUG
       statsDecRecv++;
+      #endif
     }
     #endif
   }
@@ -378,10 +399,12 @@ static void Initialize(dwDevice_t *dev, lpsAlgoOptions_t* algoOptions) {
 
   memset(uwbTdoaDistDiff, 0, sizeof(uwbTdoaDistDiff));
 
+  #ifdef DECA_DEBUG
   statsReceivedPackets = 0;
   statsAcceptedPackets = 0;
   statsRejectedSeq = 0;
   memset(statsRecv, 0, sizeof(statsRecv));
+  #endif
   
   dwSetReceiveWaitTimeout(dev, TDOA_RECEIVE_TIMEOUT);
 
@@ -413,6 +436,7 @@ LOG_ADD(LOG_FLOAT, d4-5, &uwbTdoaDistDiff[5])
 LOG_ADD(LOG_FLOAT, d5-6, &uwbTdoaDistDiff[6])
 LOG_ADD(LOG_FLOAT, d6-7, &uwbTdoaDistDiff[7])
 
+#ifdef DECA_DEBUG
 LOG_ADD(LOG_FLOAT, cc0, &clockCorrectionLog[0])
 LOG_ADD(LOG_FLOAT, cc1, &clockCorrectionLog[1])
 LOG_ADD(LOG_FLOAT, cc2, &clockCorrectionLog[2])
@@ -444,4 +468,5 @@ LOG_ADD(LOG_UINT16, recv6, &statsRecv[6])
 LOG_ADD(LOG_UINT16, recv7, &statsRecv[7])
 
 LOG_ADD(LOG_UINT16, recvDec, &statsDecRecv)
+#endif
 LOG_GROUP_STOP(tdoa)

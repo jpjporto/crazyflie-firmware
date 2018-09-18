@@ -130,20 +130,20 @@ static lpsAlgoOptions_t algoOptions = {
 
   // To set a static anchor position from startup, uncomment and modify the
   // following code:
-  .anchorPosition = {
-    {timestamp: 1, x: 4.495, y: 0.600, z: 2.395},
-    {timestamp: 1, x: 0.155, y: 0.190, z: 2.398},
-    {timestamp: 1, x: 4.498, y: 4.342, z: 2.385},
-    {timestamp: 1, x: 0.155, y: 4.245, z: 2.392},
-    {timestamp: 1, x: 4.498, y: 0.670, z: 0.390},
-    {timestamp: 1, x: 0.159, y: 0.780, z: 0.385},
+/*  .anchorPosition = {
+    {timestamp: 1, x: 4.495, y: 0.600, z: 2.095},
+    {timestamp: 1, x: 0.155, y: 0.190, z: 2.098},
+    {timestamp: 1, x: 4.498, y: 4.342, z: 2.085},
+    {timestamp: 1, x: 0.155, y: 4.245, z: 2.092},
+    {timestamp: 1, x: 4.498, y: 0.670, z: 0.090},
+    {timestamp: 1, x: 0.159, y: 0.780, z: 0.085},
 #if LOCODECK_NR_OF_ANCHORS > 6
-    {timestamp: 1, x: 4.500, y: 4.332, z: 0.395},
+    {timestamp: 1, x: 4.500, y: 4.332, z: 0.095},
 #endif
 #if LOCODECK_NR_OF_ANCHORS > 7
-    {timestamp: 1, x: 0.159, y: 4.365, z: 0.390},
+    {timestamp: 1, x: 0.159, y: 4.365, z: 0.090},
 #endif
-   },
+   },*/
 /*  .anchorPosition = {
     {timestamp: 1, x: 4.495, y: 0.600, z: 2.195},
     {timestamp: 1, x: 0.155, y: 0.190, z: 2.198},
@@ -158,8 +158,8 @@ static lpsAlgoOptions_t algoOptions = {
     {timestamp: 1, x: 0.159, y: 4.365, z: 0.190},
 #endif
    },*/
-/*     .anchorPosition = {
-    {timestamp: 1, x: 8.25 , y: 0.155, z: 3.312},
+     .anchorPosition = {
+    {timestamp: 1, x: 8.250, y: 0.155, z: 3.312},
     {timestamp: 1, x: 0.155, y: 2.023, z: 3.208},
     {timestamp: 1, x: 9.827, y:10.426, z: 3.265},
     {timestamp: 1, x: 0.155, y:10.510, z: 3.200},
@@ -171,7 +171,7 @@ static lpsAlgoOptions_t algoOptions = {
 #if LOCODECK_NR_OF_ANCHORS > 7
     {timestamp: 1, x: 0.155, y:10.040, z: 0.214},
 #endif
-   },*/
+   },
 
    .combinedAnchorPositionOk = true,
 };
