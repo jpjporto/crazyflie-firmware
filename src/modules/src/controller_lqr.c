@@ -76,7 +76,7 @@ void lqrController(control_t *control, setpoint_t *setpoint,
     e[5] = (setpoint->velcf1.z - state->velocity.z);
     e[6] = (0.0f - state->attitude.roll);
     e[7] = (0.0f - state->attitude.pitch);
-    e[8] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[8] = (0.0f - state->attitude.yaw); 
     e[9] = (0.0f - state->attitudeRate.roll);
     e[10] = (0.0f - state->attitudeRate.pitch);
     e[11] = (0.0f - state->attitudeRate.yaw);
@@ -87,21 +87,21 @@ void lqrController(control_t *control, setpoint_t *setpoint,
     u[3] = +3.1087829e-03f*e[8]+5.4567843e-04f*e[11];*/
 
 
-    e[0] = e[0] + 0.002f*(setpoint->position.x - state->position.x);
-    e[1] = e[1] + 0.002f*(setpoint->position.y - state->position.y);
-    e[2] = e[2] + 0.002f*(setpoint->position.z - state->position.z);
-    e[3] = (setpoint->position.x - state->position.x);
-    e[4] = (setpoint->position.y - state->position.y);
-    e[5] = (setpoint->position.z - state->position.z);
-    e[6] = (0.0f - state->velocity.x);
-    e[7] = (0.0f - state->velocity.y);
-    e[8] = (0.0f - state->velocity.z);
+    e[0] = e[0] + 0.002f*(setpoint->poscf1.x - state->position.x);
+    e[1] = e[1] + 0.002f*(setpoint->poscf1.y - state->position.y);
+    e[2] = e[2] + 0.002f*(setpoint->poscf1.z - state->position.z);
+    e[3] = (setpoint->poscf1.x - state->position.x);
+    e[4] = (setpoint->poscf1.y - state->position.y);
+    e[5] = (setpoint->poscf1.z - state->position.z);
+    e[6] = (setpoint->velcf1.x - state->velocity.x);
+    e[7] = (setpoint->velcf1.y - state->velocity.y);
+    e[8] = (setpoint->velcf1.z - state->velocity.z);
     e[9] = e[9] + 0.002f*(0.0f - state->attitude.roll);
     e[10] = e[10] + 0.002f*(0.0f - state->attitude.pitch);
-    e[11] = e[11] + 0.002f*(setpoint->attitude.yaw - state->attitude.yaw);
+    e[11] = e[11] + 0.002f*(0.0f - state->attitude.yaw);
     e[12] = (0.0f - state->attitude.roll);
     e[13] = (0.0f - state->attitude.pitch);
-    e[14] = (setpoint->attitude.yaw - state->attitude.yaw); 
+    e[14] = (0.0f - state->attitude.yaw); 
     e[15] = (0.0f - state->attitudeRate.roll);
     e[16] = (0.0f - state->attitudeRate.pitch);
     e[17] = (0.0f - state->attitudeRate.yaw);

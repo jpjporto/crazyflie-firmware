@@ -42,7 +42,7 @@
 #define ANCHOR_OK_TIMEOUT 1500
 #define TDOA_RECEIVE_TIMEOUT 10000
 
-//#define DECA_DEBUG
+#define DECA_DEBUG
 
 static lpsAlgoOptions_t* options;
 
@@ -93,12 +93,17 @@ void setCFState(const state_t *state)
 
 #if CFNUM >= 2
 float stemp[12 * (CFNUM-1)];
+uint8_t new_state;
 #endif
 
 void getDecState(state_t *state)
 {
     #if CFNUM >= 2
-    memcpy(state->s_dec, stemp, 4*12*(CFNUM-1));
+    if(new_state)
+    {
+        memcpy(state->s_dec, stemp, sizeof(stemp));
+        new_state = 0;
+    }
     #endif
 }
 
@@ -324,7 +329,8 @@ static void rxcallback(dwDevice_t *dev)
       // Got a valid package, save state info
       const lpsCFStatePacket_t* packet = (lpsCFStatePacket_t*)rxPacket.payload;
     
-      memcpy(&stemp[(packet->source-1)*12], packet->data, 4*12);
+      memcpy(&stemp[(packet->source-1)*12], packet->data, 12*sizeof(float));
+      new_state = 1;
       #ifdef DECA_DEBUG
       statsDecRecv++;
       #endif
@@ -411,6 +417,13 @@ static void Initialize(dwDevice_t *dev, lpsAlgoOptions_t* algoOptions) {
   dwCommitConfiguration(dev);
   
   rangingOk = false;
+  
+  #ifdef DEC_DECA
+  #if CFNUM >= 2
+  memset(stemp, 0, sizeof(stemp));
+  new_state = 0;
+  #endif
+  #endif
 }
 #pragma GCC diagnostic pop
 
@@ -425,7 +438,7 @@ uwbAlgorithm_t uwbTdoaTagAlgorithm = {
   .isRangingOk = isRangingOk,
 };
 
-
+#ifdef DECA_DEBUG
 LOG_GROUP_START(tdoa)
 LOG_ADD(LOG_FLOAT, d7-0, &uwbTdoaDistDiff[0])
 LOG_ADD(LOG_FLOAT, d0-1, &uwbTdoaDistDiff[1])
@@ -436,7 +449,6 @@ LOG_ADD(LOG_FLOAT, d4-5, &uwbTdoaDistDiff[5])
 LOG_ADD(LOG_FLOAT, d5-6, &uwbTdoaDistDiff[6])
 LOG_ADD(LOG_FLOAT, d6-7, &uwbTdoaDistDiff[7])
 
-#ifdef DECA_DEBUG
 LOG_ADD(LOG_FLOAT, cc0, &clockCorrectionLog[0])
 LOG_ADD(LOG_FLOAT, cc1, &clockCorrectionLog[1])
 LOG_ADD(LOG_FLOAT, cc2, &clockCorrectionLog[2])
@@ -468,5 +480,5 @@ LOG_ADD(LOG_UINT16, recv6, &statsRecv[6])
 LOG_ADD(LOG_UINT16, recv7, &statsRecv[7])
 
 LOG_ADD(LOG_UINT16, recvDec, &statsDecRecv)
-#endif
 LOG_GROUP_STOP(tdoa)
+#endif

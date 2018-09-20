@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define HINF_STATES 80
+//#define HINF_STATES 80
 
 static bool isInit = false;
 

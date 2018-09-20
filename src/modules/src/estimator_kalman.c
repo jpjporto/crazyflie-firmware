@@ -199,7 +199,7 @@ static float magLimits[6] = {1.2389381f, 0.4079796f, 1.2224389f, 0.4739763f, 0.5
 #define BARO_RATE RATE_25_HZ
 
 // the point at which the dynamics change from stationary to flying
-#define IN_FLIGHT_THRUST_THRESHOLD (GRAVITY_MAGNITUDE*0.1f)
+#define IN_FLIGHT_THRUST_THRESHOLD (GRAVITY_MAGNITUDE*0.01f)
 #define IN_FLIGHT_TIME_THRESHOLD (500)
 
 // the reversion of pitch and roll to zero
@@ -723,6 +723,7 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
   }
   else // Acceleration can be in any direction, as measured by the accelerometer. This occurs, eg. in freefall or while being carried.
   {
+    /*
     // position updates in the body frame (will be rotated to inertial frame)
     dx = S[STATE_PX] * dt + acc->x * dt2d2;
     dy = S[STATE_PY] * dt + acc->y * dt2d2;
@@ -742,6 +743,12 @@ static void stateEstimatorPredict(float cmdThrust, Axis3f *acc, Axis3f *gyro, fl
     S[STATE_PX] += dt * (acc->x + gyro->z * tmpSPY - gyro->y * tmpSPZ - GRAVITY_MAGNITUDE * R[2][0]);
     S[STATE_PY] += dt * (acc->y - gyro->z * tmpSPX + gyro->x * tmpSPZ - GRAVITY_MAGNITUDE * R[2][1]);
     S[STATE_PZ] += dt * (acc->z + gyro->y * tmpSPX - gyro->x * tmpSPY - GRAVITY_MAGNITUDE * R[2][2]);
+    */
+    
+    // Assume always static when not flying
+    S[STATE_PX] = 0;
+    S[STATE_PY] = 0;
+    S[STATE_PZ] = 0;
   }
 
   // attitude update (rotate by gyroscope), we do this in quaternions
@@ -1012,6 +1019,8 @@ static void stateEstimatorUpdateWithDistance(distanceMeasurement_t *d)
 }
 */
 
+static float e_log;
+
 #pragma GCC push_options
 #pragma GCC optimize ("O3")
 static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
@@ -1036,6 +1045,7 @@ static void stateEstimatorUpdateWithTDOA(tdoaMeasurement_t *tdoa)
 
   float predicted = d1 - d0;
   float error = measurement - predicted;
+  e_log = error;
 
   if (tdoaCount >= 100)
   {
@@ -1422,8 +1432,8 @@ void estimatorKalmanInit(void) {
   memset(P, 0, sizeof(S));
 
   // TODO: Can we initialize this more intelligently?
-  S[STATE_X] = 5.0;//0.5;
-  S[STATE_Y] = 5.0;//0.5;
+  S[STATE_X] = 0.5;//0.5;
+  S[STATE_Y] = 0.5;//0.5;
   S[STATE_Z] = 0;
   S[STATE_PX] = 0;
   S[STATE_PY] = 0;
@@ -1587,6 +1597,7 @@ LOG_GROUP_START(kalman)
   LOG_ADD(LOG_FLOAT, q1, &q[1])
   LOG_ADD(LOG_FLOAT, q2, &q[2])
   LOG_ADD(LOG_FLOAT, q3, &q[3])
+  LOG_ADD(LOG_FLOAT, error, &e_log)
 LOG_GROUP_STOP(kalman)
 
 PARAM_GROUP_START(kalman)
